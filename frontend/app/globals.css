@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tenzorce design tokens.
+ * Primary = deep indigo (indigo-600, #4F46E5). Canvas = soft slate (slate-50).
+ * Content surfaces = white. Borders = slate-100. Text = slate-900.
+ */
+@layer base {
+  :root {
+    --background: 210 40% 98%;        /* slate-50 canvas */
+    --foreground: 222 47% 11%;        /* slate-900 text */
+
+    --card: 0 0% 100%;                /* white surfaces */
+    --card-foreground: 222 47% 11%;
+
+    --primary: 243 75% 59%;           /* indigo-600 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;         /* slate-100 */
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;  /* slate-500 */
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --border: 214 32% 91%;            /* slate-200/100 */
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+
+    --radius: 0.75rem;                /* rounded-xl feel */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

@@ -1,0 +1,47 @@
+// ---------------------------------------------------------------------------
+// Prisma schema — Tenzorce LAP (BASE ONLY)
+// ---------------------------------------------------------------------------
+// This is the foundational schema. It contains ONLY the User model so the app
+// runs end-to-end. Interns will extend it tab-by-tab (Module, Assessment,
+// Attempt, College, Batch, etc.). Add new models below the User model.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled (PgBouncer) connection used by the running app.
+  url      = env("DATABASE_URL")
+  // Direct connection used for migrations only.
+  directUrl = env("DIRECT_URL")
+}
+
+// User roles across the platform. Matches the login tabs and the dashboards
+// shown in the product deck.
+// NOTE: the deck also shows an "Institute Admin" tier (multi-college view).
+// Add it here when that tab is implemented, e.g. INSTITUTE_ADMIN.
+enum Role {
+  STUDENT
+  TRAINER
+  COLLEGE_TPO
+  SUPER_ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Indexes on frequently queried fields keep reads fast at scale.
+  // `email` is already unique (indexed); the explicit index documents intent
+  // and covers non-unique lookups. `role` is indexed for role-scoped queries.
+  @@index([email])
+  @@index([role])
+}

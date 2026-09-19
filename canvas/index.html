@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Canvas — Local-First Infinite Board</title>
+<style>
+  :root {
+    --bg: #f4f4f6;
+    --grid: #e2e2e8;
+    --panel: rgba(255, 255, 255, 0.92);
+    --panel-border: rgba(0, 0, 0, 0.08);
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+    --accent: #4f46e5;
+    --text: #1e1e22;
+    --muted: #6b6b74;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  #board { position: absolute; inset: 0; display: block; touch-action: none; cursor: crosshair; }
+
+  /* ---------- Tab bar ---------- */
+  #tabbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 40px;
+    display: flex; align-items: flex-end; gap: 4px;
+    padding: 6px 10px 0 10px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0));
+    z-index: 20; pointer-events: none;
+  }
+  #tabbar > * { pointer-events: auto; }
+  .tab {
+    display: flex; align-items: center; gap: 8px;
+    max-width: 200px; height: 32px; padding: 0 8px 0 12px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-bottom: none; border-radius: 8px 8px 0 0;
+    font-size: 13px; color: var(--muted); cursor: pointer;
+    box-shadow: 0 -1px 6px rgba(0,0,0,0.04);
+  }
+  .tab.active { color: var(--text); background: #fff; font-weight: 600; }
+  .tab .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab .close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%; font-size: 14px; line-height: 1;
+    color: var(--muted); opacity: 0.6;
+  }
+  .tab .close:hover { background: rgba(0,0,0,0.08); opacity: 1; }
+  #addTab {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px dashed var(--panel-border);
+    background: var(--panel); color: var(--muted); font-size: 18px; cursor: pointer;
+  }
+  #addTab:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- Toolbar ---------- */
+  #toolbar {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 16px;
+    box-shadow: var(--shadow); backdrop-filter: blur(12px); z-index: 20;
+  }
+  .group { display: flex; align-items: center; gap: 4px; }
+  .sep { width: 1px; height: 26px; background: var(--panel-border); margin: 0 2px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: 10px; border: none;
+    background: transparent; color: var(--text); cursor: pointer; font-size: 18px;
+    transition: background 0.12s, color 0.12s;
+  }
+  .btn:hover { background: rgba(0,0,0,0.06); }
+  .btn.active { background: var(--accent); color: #fff; }
+  .btn svg { width: 20px; height: 20px; }
+
+  .swatches { display: flex; gap: 4px; }
+  .swatch {
+    width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+  }
+  .swatch.active { border-color: var(--accent); transform: scale(1.08); }
+  #hexPick {
+    width: 26px; height: 26px; padding: 0; border: 1px solid var(--panel-border);
+    border-radius: 6px; background: none; cursor: pointer;
+  }
+
+  .widths { display: flex; align-items: center; gap: 6px; padding: 0 4px; }
+  .width-dot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    background: transparent;
+  }
+  .width-dot:hover { background: rgba(0,0,0,0.06); }
+  .width-dot.active { background: var(--accent); }
+  .width-dot .dot { border-radius: 50%; background: var(--text); }
+  .width-dot.active .dot { background: #fff; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; left: 12px; bottom: 14px; z-index: 15;
+    font-size: 11px; color: var(--muted); background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 8px; padding: 5px 9px;
+    box-shadow: var(--shadow); display: flex; gap: 12px; align-items: center;
+  }
+  #hud b { color: var(--text); font-weight: 600; }
+  #hud .zoombtn { cursor: pointer; padding: 0 4px; font-weight: 700; color: var(--accent); }
+  #status { position: fixed; right: 12px; bottom: 14px; z-index: 15;
+    font-size: 11px; color: var(--muted); background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 8px; padding: 5px 9px;
+    box-shadow: var(--shadow); transition: opacity 0.4s; opacity: 0; }
+  #status.show { opacity: 1; }
+
+  /* Shortcuts: collapsed to a toggleable icon + modal */
+  #helpToggle {
+    position: fixed; top: 46px; right: 12px; z-index: 25;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    box-shadow: var(--shadow); color: var(--muted);
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #helpToggle:hover { color: var(--accent); border-color: var(--accent); }
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(2px);
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    position: relative; background: #fff; border-radius: 14px;
+    box-shadow: var(--shadow); padding: 20px 22px;
+    max-width: 340px; width: calc(100% - 40px);
+    font-size: 13px; color: var(--text); line-height: 1.85;
+  }
+  .modal h3 { font-size: 15px; margin-bottom: 12px; }
+  .modal .row { display: flex; justify-content: space-between; gap: 16px; }
+  .modal .row span:first-child { color: var(--muted); }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px;
+    width: 24px; height: 24px; border: none; border-radius: 6px;
+    background: transparent; color: var(--muted); font-size: 18px; cursor: pointer;
+  }
+  .modal-close:hover { background: rgba(0, 0, 0, 0.06); }
+  /* Full-screen hint while dragging a file over the board */
+  #dropHint {
+    position: fixed; inset: 0; z-index: 35; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(79, 70, 229, 0.10); border: 3px dashed var(--accent);
+    color: var(--accent); font-size: 18px; font-weight: 600; pointer-events: none;
+  }
+  #dropHint.show { display: flex; }
+  kbd {
+    font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+    background: #efeff3; border: 1px solid var(--panel-border); border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .tag { position: fixed; top: 44px; left: 12px; z-index: 15; font-size: 11px;
+    color: var(--muted); }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="board"></canvas>
+  </div>
+
+  <div id="tabbar"></div>
+  <div class="tag" id="modeTag">FREESTYLE_INFINITE</div>
+
+  <button id="helpToggle" title="Shortcuts (?)">?</button>
+  <div id="helpModal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" id="helpClose" title="Close (Esc)">×</button>
+      <h3>Shortcuts</h3>
+      <div class="row"><span>Pen / Line / Eraser / Hand</span><span><kbd>P</kbd> <kbd>L</kbd> <kbd>E</kbd> <kbd>H</kbd></span></div>
+      <div class="row"><span>Pan</span><span><kbd>Space</kbd>+drag · middle-drag</span></div>
+      <div class="row"><span>Zoom</span><span>Wheel · <kbd>0</kbd> reset</span></div>
+      <div class="row"><span>Undo / Redo</span><span><kbd>⌘/Ctrl</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd></span></div>
+      <div class="row"><span>Save / Open</span><span><kbd>⌘/Ctrl</kbd>+<kbd>S</kbd>/<kbd>O</kbd></span></div>
+      <div class="row"><span>New tab</span><span><kbd>⌘/Ctrl</kbd>+<kbd>T</kbd></span></div>
+      <div class="row"><span>Import image</span><span>Drop file · 🖼️ button</span></div>
+    </div>
+  </div>
+  <div id="dropHint">Drop image to place on canvas</div>
+
+  <div id="toolbar">
+    <div class="group" id="tools"></div>
+    <div class="sep"></div>
+    <div class="group swatches" id="swatches"></div>
+    <input type="color" id="hexPick" value="#1e1e22" title="Custom color" />
+    <div class="sep"></div>
+    <div class="group widths" id="widths"></div>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="btn" id="btnImage" title="Import image (PNG/JPG/SVG)">🖼️</button>
+      <button class="btn" id="btnSave" title="Save to disk (Ctrl+S)">💾</button>
+      <button class="btn" id="btnOpen" title="Open from disk (Ctrl+O)">📂</button>
+      <button class="btn" id="btnClear" title="Clear this tab">🗑️</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <span>Zoom <b id="zoomLbl">100%</b></span>
+    <span class="zoombtn" id="zoomReset">reset</span>
+    <span>Elements <b id="elCount">0</b></span>
+  </div>
+  <div id="status"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+ * Canvas — a local-first, infinite, multi-tab drawing app in one file.
+ *
+ * Architecture (vanilla ES6 classes, no dependencies):
+ *   - Geometry     : pure math helpers (RDP simplify, bbox, hit-test).
+ *   - CanvasMode   : enum of board layout modes (future-proofing hook).
+ *   - Engine2D     : owns the camera matrix, canvas context, offscreen scene
+ *                    cache, viewport culling, and the rAF dirty-flag render loop.
+ *   - StorageManager: File System Access API streaming + localStorage recovery.
+ *   - Workspace    : owns tabs (note buffers) and their element/viewport state.
+ *   - App          : wires DOM/toolbar/input events to the above.
+ * ==========================================================================*/
+
+/* ----------------------------- Geometry ---------------------------------- */
+const Geometry = {
+  // Ramer–Douglas–Peucker: drop points that don't change the shape.
+  rdp(points, epsilon) {
+    if (points.length < 3) return points.slice();
+    const sqEps = epsilon * epsilon;
+    const keep = new Array(points.length).fill(false);
+    keep[0] = keep[points.length - 1] = true;
+    const stack = [[0, points.length - 1]];
+    while (stack.length) {
+      const [first, last] = stack.pop();
+      let maxSq = 0, idx = -1;
+      const [ax, ay] = points[first], [bx, by] = points[last];
+      const dx = bx - ax, dy = by - ay;
+      const len2 = dx * dx + dy * dy || 1e-9;
+      for (let i = first + 1; i < last; i++) {
+        const [px, py] = points[i];
+        // squared perpendicular distance from point to segment ab
+        let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const cx = ax + t * dx, cy = ay + t * dy;
+        const ddx = px - cx, ddy = py - cy;
+        const sq = ddx * ddx + ddy * ddy;
+        if (sq > maxSq) { maxSq = sq; idx = i; }
+      }
+      if (maxSq > sqEps && idx !== -1) {
+        keep[idx] = true;
+        stack.push([first, idx], [idx, last]);
+      }
+    }
+    const out = [];
+    for (let i = 0; i < points.length; i++) if (keep[i]) out.push(points[i]);
+    return out;
+  },
+
+  bbox(points) {
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (const [x, y] of points) {
+      if (x < minx) minx = x; if (y < miny) miny = y;
+      if (x > maxx) maxx = x; if (y > maxy) maxy = y;
+    }
+    if (!isFinite(minx)) return [0, 0, 0, 0];
+    return [minx, miny, maxx, maxy];
+  },
+
+  boxesIntersect(a, b) {
+    return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+  },
+
+  // Shortest squared distance from point p to any segment of the polyline.
+  distToPolylineSq(points, px, py) {
+    let best = Infinity;
+    for (let i = 0; i < points.length - 1; i++) {
+      const [ax, ay] = points[i], [bx, by] = points[i + 1];
+      const dx = bx - ax, dy = by - ay;
+      const len2 = dx * dx + dy * dy || 1e-9;
+      let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const cx = ax + t * dx, cy = ay + t * dy;
+      const ddx = px - cx, ddy = py - cy;
+      const sq = ddx * ddx + ddy * ddy;
+      if (sq < best) best = sq;
+    }
+    if (points.length === 1) {
+      const [ax, ay] = points[0];
+      best = (px - ax) ** 2 + (py - ay) ** 2;
+    }
+    return best;
+  },
+};
+
+/* --------------------------- CanvasMode enum ----------------------------- */
+// Structured so future layouts (paginated / presentation) can constrain bounds.
+const CanvasMode = Object.freeze({
+  FREESTYLE_INFINITE: {
+    id: "FREESTYLE_INFINITE",
+    infinite: true,
+    bounds: null, // no clamp; camera roams freely
+  },
+  PAGINATED_NOTEBOOK: {
+    id: "PAGINATED_NOTEBOOK",
+    infinite: false,
+    bounds: { width: 1200, height: 1600, stack: "vertical" },
+  },
+  FIXED_ASPECT_PRESENTATION: {
+    id: "FIXED_ASPECT_PRESENTATION",
+    infinite: false,
+    bounds: { width: 1920, height: 1080, stack: "horizontal" },
+  },
+});
+
+/* ------------------------------ Engine2D --------------------------------- */
+class Engine2D {
+  constructor(canvas, opts) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.dpr = Math.max(1, window.devicePixelRatio || 1);
+    // Camera: screen = world * zoom + pan  (pan is in CSS pixels)
+    this.cam = { panX: 0, panY: 0, zoom: 1 };
+    this.W = 0; this.H = 0;
+
+    // Offscreen "scene" cache: committed elements are rendered here only when
+    // the scene changes; the live overlay stroke is composited on top each frame.
+    this.scene = document.createElement("canvas");
+    this.sctx = this.scene.getContext("2d");
+
+    this.sceneDirty = true;   // committed elements/camera changed → rebuild cache
+    this.overlayDirty = true; // live stroke / cursor changed → recomposite only
+    this.imageCache = new Map(); // element.id → decoded HTMLImageElement
+    this.getElements = opts.getElements;   // () => Element[]
+    this.drawOverlay = opts.drawOverlay;    // (ctx, engine) => void
+    this.onFrame = opts.onFrame || (() => {});
+
+    this.running = true;
+    this._loop = this._loop.bind(this);
+    requestAnimationFrame(this._loop);
+  }
+
+  resize() {
+    const { innerWidth: w, innerHeight: h } = window;
+    this.W = w; this.H = h;
+    this.dpr = Math.max(1, window.devicePixelRatio || 1);
+    for (const c of [this.canvas, this.scene]) {
+      c.width = Math.floor(w * this.dpr);
+      c.height = Math.floor(h * this.dpr);
+      c.style.width = w + "px";
+      c.style.height = h + "px";
+    }
+    this.markScene();
+  }
+
+  markScene() { this.sceneDirty = true; this.overlayDirty = true; }
+  markOverlay() { this.overlayDirty = true; }
+
+  /* -- coordinate transforms -- */
+  screenToWorld(sx, sy) {
+    return { x: (sx - this.cam.panX) / this.cam.zoom, y: (sy - this.cam.panY) / this.cam.zoom };
+  }
+  worldToScreen(wx, wy) {
+    return { x: wx * this.cam.zoom + this.cam.panX, y: wy * this.cam.zoom + this.cam.panY };
+  }
+
+  visibleWorldBox(margin = 0) {
+    const a = this.screenToWorld(-margin, -margin);
+    const b = this.screenToWorld(this.W + margin, this.H + margin);
+    return [a.x, a.y, b.x, b.y];
+  }
+
+  /* -- camera controls -- */
+  panBy(dx, dy) { this.cam.panX += dx; this.cam.panY += dy; this.markScene(); }
+
+  zoomAt(sx, sy, factor) {
+    const before = this.screenToWorld(sx, sy);
+    let z = this.cam.zoom * factor;
+    z = Math.min(40, Math.max(0.02, z));
+    this.cam.zoom = z;
+    // keep the world point under the cursor fixed
+    this.cam.panX = sx - before.x * z;
+    this.cam.panY = sy - before.y * z;
+    this.markScene();
+  }
+
+  resetView() { this.cam = { panX: 0, panY: 0, zoom: 1 }; this.markScene(); }
+
+  _applyCamera(ctx) {
+    const { zoom, panX, panY } = this.cam, d = this.dpr;
+    ctx.setTransform(zoom * d, 0, 0, zoom * d, panX * d, panY * d);
+  }
+
+  // Draw a single vector element in world space. Freedraw is smoothed with
+  // quadratic curves through point midpoints for organic ink.
+  _strokeElement(ctx, el) {
+    const pts = el.points;
+    if (!pts.length) return;
+    ctx.strokeStyle = el.strokeColor;
+    ctx.lineWidth = el.strokeWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    if (el.type === "line" && pts.length >= 2) {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    } else if (pts.length === 1) {
+      // a dot
+      const [x, y] = pts[0];
+      ctx.arc(x, y, Math.max(el.strokeWidth / 2, 0.5), 0, Math.PI * 2);
+      ctx.fillStyle = el.strokeColor; ctx.fill(); return;
+    } else if (pts.length === 2) {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.lineTo(pts[1][0], pts[1][1]);
+    } else {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i][0] + pts[i + 1][0]) / 2;
+        const my = (pts[i][1] + pts[i + 1][1]) / 2;
+        ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
+      }
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last[0], last[1]);
+    }
+    ctx.stroke();
+  }
+
+  _rebuildScene() {
+    const ctx = this.sctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.scene.width, this.scene.height);
+    this._applyCamera(ctx);
+    const view = this.visibleWorldBox(4 / this.cam.zoom);
+    const els = this.getElements();
+    let drawn = 0;
+    for (const el of els) {
+      if (Geometry.boxesIntersect(el.bbox, view)) { this._drawElement(ctx, el); drawn++; }
+    }
+    this._lastDrawn = drawn;
+    this.sceneDirty = false;
+  }
+
+  // Dispatch by element type: images vs. vector strokes.
+  _drawElement(ctx, el) {
+    if (el.type === "image") { this._drawImage(ctx, el); return; }
+    this._strokeElement(ctx, el);
+  }
+
+  // Lazily decode dataURL-backed images, caching by element id. Re-renders the
+  // scene once the bitmap finishes decoding.
+  getImage(el) {
+    let img = this.imageCache.get(el.id);
+    if (!img) {
+      img = new Image();
+      img.onload = () => this.markScene();
+      img.src = el.dataURL;
+      this.imageCache.set(el.id, img);
+    }
+    return img;
+  }
+
+  _drawImage(ctx, el) {
+    const img = this.getImage(el);
+    if (img.complete && img.naturalWidth) {
+      ctx.drawImage(img, el.x, el.y, el.width, el.height);
+    } else {
+      // placeholder while decoding
+      ctx.strokeStyle = "rgba(0,0,0,0.2)";
+      ctx.lineWidth = 1 / this.cam.zoom;
+      ctx.strokeRect(el.x, el.y, el.width, el.height);
+    }
+  }
+
+  _loop() {
+    if (!this.running) return;
+    if (this.sceneDirty) this._rebuildScene();
+    if (this.sceneDirty || this.overlayDirty) {
+      const ctx = this.ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // composite cached scene 1:1
+      ctx.drawImage(this.scene, 0, 0);
+      // live overlay (in-progress stroke, eraser cursor) in world space
+      this._applyCamera(ctx);
+      if (this.drawOverlay) this.drawOverlay(ctx, this);
+      this.overlayDirty = false;
+      this.onFrame(this);
+    }
+    requestAnimationFrame(this._loop);
+  }
+}
+
+/* --------------------------- StorageManager ------------------------------ */
+class StorageManager {
+  constructor(lsKey) {
+    this.lsKey = lsKey;
+    this.fileHandle = null;
+    this.hasFSA = !!(window.showSaveFilePicker && window.showOpenFilePicker);
+    this._saveTimer = null;
+  }
+
+  // Debounced local recovery snapshot (survives refresh / crash mid-stroke).
+  autosaveLocal(getState) {
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => {
+      try { localStorage.setItem(this.lsKey, JSON.stringify(getState())); } catch (e) {}
+    }, 400);
+  }
+
+  loadLocal() {
+    try {
+      const raw = localStorage.getItem(this.lsKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  async saveToDisk(state) {
+    const json = JSON.stringify(state, null, 2);
+    if (this.hasFSA) {
+      if (!this.fileHandle) {
+        this.fileHandle = await window.showSaveFilePicker({
+          suggestedName: "canvas-notes.json",
+          types: [{ description: "Canvas JSON", accept: { "application/json": [".json"] } }],
+        });
+      }
+      const w = await this.fileHandle.createWritable();
+      await w.write(json);
+      await w.close();
+      return this.fileHandle.name;
+    }
+    // Fallback: anchor download for browsers without the API.
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "canvas-notes.json"; a.click();
+    URL.revokeObjectURL(url);
+    return "canvas-notes.json";
+  }
+
+  // Silent write to an already-chosen handle (used for auto-save to disk).
+  async streamToHandle(state) {
+    if (!this.fileHandle) return false;
+    const w = await this.fileHandle.createWritable();
+    await w.write(JSON.stringify(state, null, 2));
+    await w.close();
+    return true;
+  }
+
+  async openFromDisk() {
+    if (this.hasFSA) {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: "Canvas JSON", accept: { "application/json": [".json"] } }],
+      });
+      this.fileHandle = handle;
+      const file = await handle.getFile();
+      return JSON.parse(await file.text());
+    }
+    // Fallback: hidden file input.
+    return new Promise((resolve, reject) => {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = ".json,application/json";
+      inp.onchange = () => {
+        const f = inp.files[0];
+        if (!f) return reject(new Error("no file"));
+        const r = new FileReader();
+        r.onload = () => { try { resolve(JSON.parse(r.result)); } catch (e) { reject(e); } };
+        r.onerror = reject;
+        r.readAsText(f);
+      };
+      inp.click();
+    });
+  }
+}
+
+/* ------------------------------ Workspace -------------------------------- */
+let _uid = 0;
+const uid = (p) => `${p}_${Date.now().toString(36)}_${(_uid++).toString(36)}`;
+
+// Normalize a raw (possibly loaded-from-disk) element into our internal shape.
+function normalizeElement(e) {
+  if (e.type === "image") {
+    const x = e.x || 0, y = e.y || 0, w = e.width || 0, h = e.height || 0;
+    return {
+      id: e.id || uid("el"), type: "image",
+      x, y, width: w, height: h,
+      dataURL: e.dataURL || "",
+      bbox: e.bbox || [x, y, x + w, y + h],
+    };
+  }
+  return {
+    id: e.id || uid("el"),
+    type: e.type || "freedraw",
+    points: e.points || [],
+    bbox: e.bbox || Geometry.bbox(e.points || []),
+    strokeColor: e.strokeColor || "#1e1e22",
+    strokeWidth: e.strokeWidth || 3,
+  };
+}
+
+// Serialize an internal element back to a plain JSON record.
+function serializeElement(e) {
+  if (e.type === "image") {
+    return { id: e.id, type: "image", x: e.x, y: e.y,
+             width: e.width, height: e.height, dataURL: e.dataURL, bbox: e.bbox };
+  }
+  return { id: e.id, type: e.type, points: e.points, bbox: e.bbox,
+           strokeColor: e.strokeColor, strokeWidth: e.strokeWidth };
+}
+
+class Note {
+  constructor(name) {
+    this.id = uid("note");
+    this.name = name || "Untitled";
+    this.mode = CanvasMode.FREESTYLE_INFINITE.id;
+    this.viewport = { panX: 0, panY: 0, zoom: 1 };
+    this.elements = [];
+    this.undo = [];
+    this.redo = [];
+  }
+  static from(obj) {
+    const n = new Note(obj.name);
+    n.id = obj.id || n.id;
+    n.mode = obj.mode || n.mode;
+    n.viewport = obj.viewport || n.viewport;
+    n.elements = (obj.elements || []).map(normalizeElement);
+    return n;
+  }
+  serialize() {
+    return {
+      id: this.id, name: this.name, mode: this.mode, viewport: this.viewport,
+      elements: this.elements.map(serializeElement),
+    };
+  }
+}
+
+class Workspace {
+  constructor() { this.notes = []; this.activeIndex = 0; }
+  get active() { return this.notes[this.activeIndex]; }
+
+  addNote(name) {
+    const n = new Note(name || `Note ${this.notes.length + 1}`);
+    this.notes.push(n);
+    this.activeIndex = this.notes.length - 1;
+    return n;
+  }
+  closeNote(i) {
+    if (this.notes.length <= 1) { // never leave zero tabs
+      this.notes[i] = new Note("Note 1");
+    } else {
+      this.notes.splice(i, 1);
+    }
+    if (this.activeIndex >= this.notes.length) this.activeIndex = this.notes.length - 1;
+    if (this.activeIndex < 0) this.activeIndex = 0;
+  }
+  serialize() {
+    return { version: 1, app: "canvas-local", activeIndex: this.activeIndex,
+             notes: this.notes.map((n) => n.serialize()) };
+  }
+  static from(obj) {
+    const ws = new Workspace();
+    ws.notes = (obj.notes || []).map(Note.from);
+    if (!ws.notes.length) ws.notes = [new Note("Note 1")];
+    ws.activeIndex = Math.min(obj.activeIndex || 0, ws.notes.length - 1);
+    return ws;
+  }
+}
+
+/* -------------------------------- App ------------------------------------ */
+const PALETTE = [
+  "#1e1e22", "#e03131", "#f08c00", "#f7b500", "#2f9e44",
+  "#1971c2", "#4f46e5", "#9c36b5", "#e64980", "#ffffff",
+];
+const WIDTHS = [2, 5, 11];
+const HISTORY_LIMIT = 60;
+
+class App {
+  constructor() {
+    this.canvas = document.getElementById("board");
+    this.storage = new StorageManager("canvas-local-v1");
+
+    // Restore prior session (recovery) or start fresh.
+    const restored = this.storage.loadLocal();
+    this.ws = restored ? Workspace.from(restored) : new Workspace();
+    if (!restored) this.ws.addNote("Note 1");
+
+    this.tool = "pen";           // pen | line | eraser | pan
+    this.color = PALETTE[0];
+    this.width = WIDTHS[1];
+
+    // interaction state
+    this.drawing = null;         // in-progress element
+    this.panning = false;
+    this.spaceDown = false;
+    this.lastPan = null;
+    this.cursor = null;          // world-space cursor (for eraser ring)
+
+    this.engine = new Engine2D(this.canvas, {
+      getElements: () => this.ws.active.elements,
+      drawOverlay: (ctx, eng) => this._drawOverlay(ctx, eng),
+      onFrame: () => {},
+    });
+
+    this._syncCameraFromNote();
+    this.engine.resize();
+
+    this._buildToolbar();
+    this._buildTabs();
+    this._bindEvents();
+    this._updateHud();
+    this._flash("Ready — local-first, no server. ⌘/Ctrl+S to save to disk.");
+  }
+
+  /* ----- camera <-> note viewport sync ----- */
+  _syncCameraFromNote() {
+    const v = this.ws.active.viewport;
+    this.engine.cam = { panX: v.panX, panY: v.panY, zoom: v.zoom };
+    this.engine.markScene();
+  }
+  _syncNoteFromCamera() {
+    const c = this.engine.cam;
+    this.ws.active.viewport = { panX: c.panX, panY: c.panY, zoom: c.zoom };
+  }
+
+  /* ----- history ----- */
+  _pushHistory() {
+    const note = this.ws.active;
+    note.undo.push(note.elements.map((e) => e)); // shallow copy of the array
+    if (note.undo.length > HISTORY_LIMIT) note.undo.shift();
+    note.redo.length = 0;
+  }
+  undo() {
+    const note = this.ws.active;
+    if (!note.undo.length) return;
+    note.redo.push(note.elements);
+    note.elements = note.undo.pop();
+    this._afterMutation();
+  }
+  redo() {
+    const note = this.ws.active;
+    if (!note.redo.length) return;
+    note.undo.push(note.elements);
+    note.elements = note.redo.pop();
+    this._afterMutation();
+  }
+
+  _afterMutation() {
+    this.engine.markScene();
+    this._updateHud();
+    this.storage.autosaveLocal(() => this.ws.serialize());
+    this._autoSaveDisk();
+  }
+
+  _autoSaveDisk() {
+    if (!this.storage.fileHandle) return;
+    clearTimeout(this._diskTimer);
+    this._diskTimer = setTimeout(async () => {
+      try { await this.storage.streamToHandle(this.ws.serialize()); this._flash("Auto-saved to disk"); }
+      catch (e) { /* handle may have been revoked */ }
+    }, 1200);
+  }
+
+  /* ----- toolbar / tabs DOM ----- */
+  _buildToolbar() {
+    const TOOLS = [
+      { id: "pen", title: "Pen (P)", svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
+      { id: "line", title: "Line (L)", svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg>' },
+      { id: "eraser", title: "Eraser (E)", svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16a2 2 0 0 1 0-3L13 3l8 8-9 9"/><path d="M6 11l7 7"/></svg>' },
+      { id: "pan", title: "Hand / Pan (H)", svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2a8 8 0 0 1-7-4l-3-5a2 2 0 0 1 3-2l2 2"/></svg>' },
+    ];
+    const box = document.getElementById("tools");
+    box.innerHTML = "";
+    this._toolBtns = {};
+    for (const t of TOOLS) {
+      const b = document.createElement("button");
+      b.className = "btn"; b.title = t.title; b.innerHTML = t.svg;
+      b.onclick = () => this.setTool(t.id);
+      box.appendChild(b);
+      this._toolBtns[t.id] = b;
+    }
+
+    const sw = document.getElementById("swatches");
+    sw.innerHTML = ""; this._swatchEls = [];
+    PALETTE.forEach((c) => {
+      const s = document.createElement("div");
+      s.className = "swatch"; s.style.background = c; s.title = c;
+      s.onclick = () => this.setColor(c);
+      sw.appendChild(s); this._swatchEls.push(s);
+    });
+    const hex = document.getElementById("hexPick");
+    hex.oninput = () => this.setColor(hex.value, true);
+    this._hex = hex;
+
+    const wd = document.getElementById("widths");
+    wd.innerHTML = ""; this._widthEls = [];
+    WIDTHS.forEach((w) => {
+      const d = document.createElement("div");
+      d.className = "width-dot"; d.title = `${w}px`;
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      const px = Math.max(4, Math.min(18, w + 3));
+      dot.style.width = px + "px"; dot.style.height = px + "px";
+      d.appendChild(dot);
+      d.onclick = () => this.setWidth(w);
+      wd.appendChild(d); this._widthEls.push(d);
+    });
+
+    document.getElementById("btnSave").onclick = () => this.save();
+    document.getElementById("btnOpen").onclick = () => this.open();
+    document.getElementById("btnClear").onclick = () => this.clearActive();
+
+    this._refreshToolbarState();
+  }
+
+  _refreshToolbarState() {
+    for (const id in this._toolBtns) this._toolBtns[id].classList.toggle("active", id === this.tool);
+    this._swatchEls.forEach((s, i) => s.classList.toggle("active", PALETTE[i] === this.color));
+    this._widthEls.forEach((d, i) => d.classList.toggle("active", WIDTHS[i] === this.width));
+    this.canvas.style.cursor = this.tool === "pan" ? "grab"
+      : this.tool === "eraser" ? "cell" : "crosshair";
+  }
+
+  _buildTabs() {
+    const bar = document.getElementById("tabbar");
+    bar.innerHTML = "";
+    this.ws.notes.forEach((n, i) => {
+      const t = document.createElement("div");
+      t.className = "tab" + (i === this.ws.activeIndex ? " active" : "");
+      const name = document.createElement("span");
+      name.className = "name"; name.textContent = n.name;
+      name.ondblclick = (e) => { e.stopPropagation(); this._renameTab(i); };
+      t.appendChild(name);
+      const x = document.createElement("span");
+      x.className = "close"; x.textContent = "×";
+      x.onclick = (e) => { e.stopPropagation(); this.closeTab(i); };
+      t.appendChild(x);
+      t.onclick = () => this.switchTab(i);
+      bar.appendChild(t);
+    });
+    const add = document.createElement("button");
+    add.id = "addTab"; add.textContent = "+"; add.title = "New note tab";
+    add.onclick = () => this.addTab();
+    bar.appendChild(add);
+    document.getElementById("modeTag").textContent = this.ws.active.mode;
+  }
+
+  _renameTab(i) {
+    const cur = this.ws.notes[i].name;
+    const name = prompt("Rename note", cur);
+    if (name && name.trim()) { this.ws.notes[i].name = name.trim(); this._buildTabs(); this._persist(); }
+  }
+
+  /* ----- tool / color / width setters ----- */
+  setTool(t) { this.tool = t; this._refreshToolbarState(); }
+  setColor(c, fromPicker) {
+    this.color = c;
+    if (!fromPicker && this._hex) this._hex.value = /^#/.test(c) && c.length === 7 ? c : this._hex.value;
+    this._refreshToolbarState();
+  }
+  setWidth(w) { this.width = w; this._refreshToolbarState(); }
+
+  /* ----- tabs ----- */
+  addTab() { this._syncNoteFromCamera(); this.ws.addNote(); this._afterTabChange(); this._flash("New tab"); }
+  switchTab(i) {
+    if (i === this.ws.activeIndex) return;
+    this._syncNoteFromCamera();
+    this.ws.activeIndex = i;
+    this._afterTabChange();
+  }
+  closeTab(i) {
+    this._syncNoteFromCamera();
+    this.ws.closeNote(i);
+    this._afterTabChange();
+  }
+  _afterTabChange() {
+    this._syncCameraFromNote();
+    this._buildTabs();
+    this.engine.markScene();
+    this._updateHud();
+    this._persist();
+  }
+
+  clearActive() {
+    if (!confirm("Clear all strokes in this tab?")) return;
+    this._pushHistory();
+    this.ws.active.elements = [];
+    this._afterMutation();
+  }
+
+  /* ----- persistence ----- */
+  _persist() {
+    this._syncNoteFromCamera();
+    this.storage.autosaveLocal(() => this.ws.serialize());
+    this._autoSaveDisk();
+  }
+  async save() {
+    try {
+      this._syncNoteFromCamera();
+      const name = await this.storage.saveToDisk(this.ws.serialize());
+      this._flash(`Saved → ${name}`);
+    } catch (e) { if (e.name !== "AbortError") this._flash("Save cancelled"); }
+  }
+  async open() {
+    try {
+      const obj = await this.storage.openFromDisk();
+      this.ws = Workspace.from(obj);
+      this._syncCameraFromNote();
+      this._buildTabs();
+      this.engine.markScene();
+      this._updateHud();
+      this.storage.autosaveLocal(() => this.ws.serialize());
+      this._flash("Opened from disk");
+    } catch (e) { if (e.name !== "AbortError") this._flash("Open cancelled"); }
+  }
+
+  /* ----- pointer input ----- */
+  _bindEvents() {
+    window.addEventListener("resize", () => { this._syncNoteFromCamera(); this.engine.resize(); });
+
+    const c = this.canvas;
+    c.addEventListener("pointerdown", (e) => this._onDown(e));
+    c.addEventListener("pointermove", (e) => this._onMove(e));
+    window.addEventListener("pointerup", (e) => this._onUp(e));
+    c.addEventListener("pointerleave", () => { this.cursor = null; this.engine.markOverlay(); });
+
+    c.addEventListener("wheel", (e) => this._onWheel(e), { passive: false });
+    c.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    window.addEventListener("keydown", (e) => this._onKey(e));
+    window.addEventListener("keyup", (e) => { if (e.code === "Space") this.spaceDown = false; });
+    window.addEventListener("beforeunload", () => this._persist());
+
+    // Image import via drag-and-drop (anywhere over the window).
+    const hint = document.getElementById("dropHint");
+    let dragDepth = 0;
+    window.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { dragDepth++; hint.classList.add("show"); }
+    });
+    window.addEventListener("dragover", (e) => e.preventDefault());
+    window.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      if (--dragDepth <= 0) { dragDepth = 0; hint.classList.remove("show"); }
+    });
+    window.addEventListener("drop", (e) => {
+      e.preventDefault(); dragDepth = 0; hint.classList.remove("show");
+      this._onDrop(e);
+    });
+
+    // Image import via file picker.
+    document.getElementById("btnImage").onclick = () => this.importImagesViaPicker();
+
+    // Shortcuts modal toggle.
+    const modal = document.getElementById("helpModal");
+    document.getElementById("helpToggle").onclick = () => modal.classList.toggle("hidden");
+    document.getElementById("helpClose").onclick = () => modal.classList.add("hidden");
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); });
+  }
+
+  _isPanGesture(e) {
+    return this.tool === "pan" || e.button === 1 || this.spaceDown;
+  }
+
+  _onDown(e) {
+    this.canvas.setPointerCapture(e.pointerId);
+    const sx = e.clientX, sy = e.clientY;
+
+    if (this._isPanGesture(e)) {
+      this.panning = true; this.lastPan = { x: sx, y: sy };
+      this.canvas.style.cursor = "grabbing";
+      return;
+    }
+
+    const w = this.engine.screenToWorld(sx, sy);
+    if (this.tool === "eraser") {
+      this.erasing = true;
+      this._pushHistory();
+      this._eraseAt(w.x, w.y);
+      return;
+    }
+
+    // start a new stroke
+    this.drawing = {
+      id: uid("el"),
+      type: this.tool === "line" ? "line" : "freedraw",
+      points: [[w.x, w.y]],
+      strokeColor: this.color,
+      strokeWidth: this.width,
+      bbox: [w.x, w.y, w.x, w.y],
+    };
+    this.engine.markOverlay();
+  }
+
+  _onMove(e) {
+    const sx = e.clientX, sy = e.clientY;
+    const w = this.engine.screenToWorld(sx, sy);
+    this.cursor = { x: w.x, y: w.y };
+
+    if (this.panning) {
+      this.engine.panBy(sx - this.lastPan.x, sy - this.lastPan.y);
+      this.lastPan = { x: sx, y: sy };
+      this._updateHud();
+      return;
+    }
+
+    if (this.erasing) { this._eraseAt(w.x, w.y); this.engine.markOverlay(); return; }
+
+    if (this.drawing) {
+      if (this.drawing.type === "line") {
+        this.drawing.points[1] = [w.x, w.y];
+      } else {
+        const pts = this.drawing.points;
+        const last = pts[pts.length - 1];
+        // skip near-duplicate samples to keep the buffer lean
+        if ((last[0] - w.x) ** 2 + (last[1] - w.y) ** 2 > 0.25) pts.push([w.x, w.y]);
+      }
+      this.engine.markOverlay();
+      return;
+    }
+
+    if (this.tool === "eraser") this.engine.markOverlay(); // move the eraser ring
+  }
+
+  _onUp(e) {
+    if (this.canvas.hasPointerCapture?.(e.pointerId)) {
+      try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (this.panning) {
+      this.panning = false;
+      this._refreshToolbarState();
+      this._persist();
+      return;
+    }
+    if (this.erasing) { this.erasing = false; this._afterMutation(); return; }
+
+    if (this.drawing) {
+      const d = this.drawing; this.drawing = null;
+      if (d.type === "freedraw" && d.points.length > 2) {
+        // simplify raw samples; epsilon scales with zoom so it's consistent on screen
+        d.points = Geometry.rdp(d.points, 0.6 / this.engine.cam.zoom);
+      }
+      d.bbox = Geometry.bbox(d.points);
+      // ignore accidental zero-length taps for the line tool
+      if (d.type === "line" && d.points.length < 2) { this.engine.markOverlay(); return; }
+      this._pushHistory();
+      this.ws.active.elements.push(d);
+      this._afterMutation();
+    }
+  }
+
+  _onWheel(e) {
+    e.preventDefault();
+    // pinch/ctrl-zoom vs plain wheel both map to zoom, centered at pointer
+    const factor = Math.pow(1.0015, -e.deltaY);
+    this.engine.zoomAt(e.clientX, e.clientY, factor);
+    this._updateHud();
+    this._persist();
+  }
+
+  _eraseAt(wx, wy) {
+    const note = this.ws.active;
+    const r = (this.width * 2 + 6) / this.engine.cam.zoom; // world-space radius
+    const rSq = r * r;
+    const box = [wx - r, wy - r, wx + r, wy + r];
+    let removed = false;
+    note.elements = note.elements.filter((el) => {
+      if (!Geometry.boxesIntersect(el.bbox, box)) return true;
+      const hit = el.type === "image"
+        ? (wx >= el.bbox[0] && wx <= el.bbox[2] && wy >= el.bbox[1] && wy <= el.bbox[3])
+        : Geometry.distToPolylineSq(el.points, wx, wy) <= rSq;
+      if (hit) removed = true;
+      return !hit;
+    });
+    if (removed) this.engine.markScene();
+  }
+
+  /* ----- image import ----- */
+  _isImageFile(f) {
+    return /^image\/(png|jpeg|jpg|svg\+xml)$/i.test(f.type) || /\.(png|jpe?g|svg)$/i.test(f.name);
+  }
+
+  _onDrop(e) {
+    const files = [...((e.dataTransfer && e.dataTransfer.files) || [])].filter((f) => this._isImageFile(f));
+    if (!files.length) { this._flash("Drop a PNG, JPG, or SVG"); return; }
+    const w = this.engine.screenToWorld(e.clientX, e.clientY);
+    this._importImages(files, w.x, w.y);
+  }
+
+  importImagesViaPicker() {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.multiple = true;
+    inp.accept = "image/png,image/jpeg,image/svg+xml";
+    inp.onchange = () => {
+      const files = [...inp.files].filter((f) => this._isImageFile(f));
+      if (!files.length) return;
+      const c = this.engine.screenToWorld(this.engine.W / 2, this.engine.H / 2);
+      this._importImages(files, c.x, c.y);
+    };
+    inp.click();
+  }
+
+  _readDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  _imageDims(dataURL) {
+    return new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+      im.onerror = () => res({ w: 0, h: 0 });
+      im.src = dataURL;
+    });
+  }
+
+  async _importImages(files, wx, wy) {
+    const created = [];
+    let offset = 0;
+    const maxW = 600 / this.engine.cam.zoom; // ~600px on screen at current zoom
+    for (const f of files) {
+      try {
+        const dataURL = await this._readDataURL(f);
+        let { w, h } = await this._imageDims(dataURL);
+        if (!w || !h) { w = 300; h = 200; } // SVGs may report no intrinsic size
+        if (w > maxW) { const s = maxW / w; w *= s; h *= s; }
+        const x = wx - w / 2 + offset, y = wy - h / 2 + offset;
+        created.push({
+          id: uid("el"), type: "image",
+          x, y, width: w, height: h, dataURL,
+          bbox: [x, y, x + w, y + h],
+        });
+        offset += 24;
+      } catch (err) { /* skip unreadable file */ }
+    }
+    if (!created.length) { this._flash("No images imported"); return; }
+    this._pushHistory();
+    this.ws.active.elements.push(...created);
+    this._afterMutation();
+    this._flash(`Imported ${created.length} image${created.length > 1 ? "s" : ""}`);
+  }
+
+  /* ----- overlay (live stroke + eraser cursor) ----- */
+  _drawOverlay(ctx, eng) {
+    if (this.drawing) eng._strokeElement(ctx, this.drawing);
+    if (this.tool === "eraser" && this.cursor && !this.panning) {
+      const r = (this.width * 2 + 6);
+      ctx.beginPath();
+      ctx.arc(this.cursor.x, this.cursor.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(224,49,49,0.9)";
+      ctx.lineWidth = 1 / eng.cam.zoom;
+      ctx.setLineDash([4 / eng.cam.zoom, 3 / eng.cam.zoom]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  /* ----- keyboard ----- */
+  _onKey(e) {
+    const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); return; }
+    if (meta && e.key.toLowerCase() === "o") { e.preventDefault(); this.open(); return; }
+    if (meta && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); return; }
+    if (meta && e.key.toLowerCase() === "y") { e.preventDefault(); this.redo(); return; }
+    if (meta && e.key.toLowerCase() === "t") { e.preventDefault(); this.addTab(); return; }
+    if (meta) return;
+
+    const modal = document.getElementById("helpModal");
+    if (e.key === "Escape") { modal.classList.add("hidden"); return; }
+    if (e.key === "?") { modal.classList.toggle("hidden"); return; }
+
+    if (e.code === "Space") { this.spaceDown = true; e.preventDefault(); return; }
+    const k = e.key.toLowerCase();
+    if (k === "p") this.setTool("pen");
+    else if (k === "l") this.setTool("line");
+    else if (k === "e") this.setTool("eraser");
+    else if (k === "h") this.setTool("pan");
+    else if (k === "0") { this.engine.resetView(); this._updateHud(); this._persist(); }
+  }
+
+  /* ----- HUD ----- */
+  _updateHud() {
+    document.getElementById("zoomLbl").textContent = Math.round(this.engine.cam.zoom * 100) + "%";
+    document.getElementById("elCount").textContent = this.ws.active.elements.length;
+  }
+  _flash(msg) {
+    const s = document.getElementById("status");
+    s.textContent = msg; s.classList.add("show");
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => s.classList.remove("show"), 1800);
+  }
+}
+
+document.getElementById("zoomReset").onclick = () => {
+  window.__app.engine.resetView(); window.__app._updateHud(); window.__app._persist();
+};
+
+window.addEventListener("DOMContentLoaded", () => { window.__app = new App(); });
+</script>
+</body>
+</html>
