@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
-// Prisma schema — Tenzorce LAP (BASE ONLY)
+// Prisma schema — Tenzorce LAP
 // ---------------------------------------------------------------------------
-// This is the foundational schema. It contains ONLY the User model so the app
-// runs end-to-end. Interns will extend it tab-by-tab (Module, Assessment,
-// Attempt, College, Batch, etc.). Add new models below the User model.
+// Base User model + Practice Arena models (Test / Section / Question /
+// TestSubmission). Interns extend further per tab (Assessment, Module, ...).
 // ---------------------------------------------------------------------------
 
 generator client {
@@ -11,9 +10,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // Pooled (PgBouncer) connection used by the running app.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // Direct connection used for migrations only.
   directUrl = env("DIRECT_URL")
 }
@@ -29,6 +28,31 @@ enum Role {
   SUPER_ADMIN
 }
 
+enum TestCategory {
+  APTITUDE
+  CODING
+  DSA
+  DOMAIN
+  COMPANY_SPECIFIC
+  INTERVIEW
+  AI_SKILLS
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionType {
+  MCQ
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  PREDICT_OUTPUT
+  PSEUDOCODE
+  CODING
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -36,12 +60,93 @@ model User {
   name         String
   role         Role     @default(STUDENT)
   isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  // Practice Arena stats (updated on test submission).
+  points         Int       @default(0)
+  currentStreak  Int       @default(0)
+  lastActivityAt DateTime?
+
+  submissions TestSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Indexes on frequently queried fields keep reads fast at scale.
-  // `email` is already unique (indexed); the explicit index documents intent
-  // and covers non-unique lookups. `role` is indexed for role-scoped queries.
   @@index([email])
   @@index([role])
+  // Leaderboard sorts by points descending.
+  @@index([points])
+}
+
+model Test {
+  id              String       @id @default(cuid())
+  title           String
+  category        TestCategory
+  difficulty      Difficulty   @default(MEDIUM)
+  company         String? // e.g. "TCS", "Amazon" — powers the company badge
+  durationMinutes Int
+  questionCount   Int          @default(0)
+  attempts        Int          @default(0) // denormalized counter for the "X attempts" label
+  isActive        Boolean      @default(true)
+
+  sections    Section[]
+  submissions TestSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Catalog is filtered by category/difficulty.
+  @@index([category])
+  @@index([difficulty])
+}
+
+model Section {
+  id                String  @id @default(cuid())
+  testId            String
+  title             String
+  order             Int     @default(0)
+  timeLimitMinutes  Int?
+  test              Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questions         Question[]
+
+  @@index([testId])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  sectionId     String
+  type          QuestionType @default(MCQ)
+  prompt        String       @db.Text
+  // Options for choice questions: [{ id, label, text }]. Null for coding.
+  options       Json?
+  // Correct answer key. NEVER returned in test-taking payloads.
+  // For MCQ/TRUE_FALSE: option id. For MULTIPLE_SELECT: JSON array of ids.
+  correctAnswer String?
+  marks         Float        @default(1)
+  negativeMarks Float        @default(0)
+  order         Int          @default(0)
+  section       Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+model TestSubmission {
+  id             String   @id @default(cuid())
+  userId         String
+  testId         String
+  score          Float
+  correctCount   Int
+  incorrectCount Int
+  percentage     Float
+  // Snapshot of the answers that were graded: { questionId: answer }
+  answers        Json
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testId])
+  // Streak computation scans a user's recent submissions.
+  @@index([userId, createdAt])
 }

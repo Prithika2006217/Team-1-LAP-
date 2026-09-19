@@ -28,6 +28,28 @@ LAP/
 - `prisma/schema.prisma` with the **User** model + `Role` enum and indexes.
 - Placeholder routes: `POST /api/auth/login`, `GET /api/study/modules` (return 501).
 
+## Practice Arena (first fully-built feature)
+
+The Practice Arena is implemented end-to-end as the reference for how each tab
+should be built.
+
+**Backend** (`src/controllers/practice.controller.ts`, `exam.controller.ts`)
+- `GET  /api/practice/tests?category=&difficulty=` — light catalog (`select`, no answer keys)
+- `GET  /api/practice/leaderboard` — top 5 users by points
+- `GET  /api/practice/streak/:userId` — rolling 7-day activity array
+- `GET  /api/practice/tests/:id` — full blueprint (sections/questions/options) **without** answer keys
+- `POST /api/practice/autosave` — buffers one answer in Redis (`exam:${testId}:${userId}` hash), never touches Postgres
+- `POST /api/practice/submit` — grades against Neon, writes one `TestSubmission` in a `$transaction`, updates points/streak, clears the Redis buffer
+- Models added: `Test`, `Section`, `Question`, `TestSubmission` (+ enums).
+
+**Frontend**
+- `app/dashboard/practice-arena/page.tsx` — filter ribbon, recommended-tests grid,
+  explore-by-type grid, and side widgets (Quick Actions, Test Streak, Leaderboard,
+  Trending). SWR fetching; category filter is client-side.
+- `app/dashboard/practice-arena/[testId]/page.tsx` — live test runner: countdown
+  (auto-submits at 0), section tabs, question palette (colour-coded), MCQ + Monaco
+  code editor (dynamic import, SSR off), auto-save debounced 2s.
+
 ## Run it
 
 ```bash
@@ -35,7 +57,9 @@ LAP/
 cd backend
 cp .env.example .env        # fill in Neon + Upstash + JWT values
 npm install
-npm run prisma:generate
+npm run prisma:generate     # needs network access to binaries.prisma.sh
+npm run prisma:migrate      # create tables in Neon
+npm run prisma:seed         # demo tests + leaderboard users (optional)
 npm run dev                 # http://localhost:5000
 
 # Frontend (separate terminal)
@@ -45,8 +69,10 @@ npm install
 npm run dev                 # http://localhost:3000
 ```
 
-> The base runs without a real DB/Redis: login is mocked and API routes return
-> `501 Not Implemented`. Configure `.env` before wiring real data.
+> The base runs without a real DB/Redis: login is mocked and the un-built API
+> routes return `501 Not Implemented`. Configure `.env` before wiring real data.
+> Auto-save/streak need an authenticated user id — the base reads a `uid` cookie
+> (interns set this from real auth). Autosave degrades gracefully if Redis is off.
 
 ## For interns
 

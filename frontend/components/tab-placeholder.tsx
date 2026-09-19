@@ -1,9 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Construction } from "lucide-react";
+import { ChevronRight, Construction } from "lucide-react";
 
 // Shared placeholder for tab pages that interns will build out.
-// Renders the tab title + a short "what to build here" note so the navigation
-// shell is fully clickable in the base app.
+// Renders a breadcrumb + header + a short "what to build here" empty state so
+// every sidebar route is a fully-rendered shell in the base app.
 export function TabPlaceholder({
   title,
   description,
@@ -15,6 +15,13 @@ export function TabPlaceholder({
 }) {
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 text-xs text-slate-400">
+        <span>Dashboard</span>
+        <ChevronRight className="h-3 w-3" />
+        <span className="text-slate-600">{title}</span>
+      </nav>
+
       <div>
         <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
         <p className="text-sm text-slate-500">{description}</p>
