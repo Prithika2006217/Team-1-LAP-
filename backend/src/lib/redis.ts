@@ -16,12 +16,19 @@ let redis: Redis | null = null;
 export function getRedis(): Redis | null {
   if (redis) return redis;
 
-  if (!process.env.REDIS_URL) {
+  const configuredUrl = process.env.REDIS_URL?.trim();
+  if (!configuredUrl) {
     console.warn("[redis] REDIS_URL not set — cache disabled (fine for local base dev).");
     return null;
   }
 
-  redis = new Redis(process.env.REDIS_URL, {
+  // Upstash often displays a CLI command; ioredis needs only its URL.
+  const redisUrl = configuredUrl.replace(
+    /^redis-cli\s+--tls\s+-u\s+redis:\/\//i,
+    "rediss://"
+  );
+
+  redis = new Redis(redisUrl, {
     lazyConnect: true,
     maxRetriesPerRequest: 2,
   });
