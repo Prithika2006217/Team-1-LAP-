@@ -12,7 +12,6 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
 import { prisma } from "./lib/prisma";
-import { getRedis } from "./lib/redis";
 import authRoutes from "./routes/auth.routes";
 import studyRoutes from "./routes/study.routes";
 import practiceRoutes from "./routes/practice.routes";
@@ -48,8 +47,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // --- Cache client -------------------------------------------------------------
-// Initialize the shared Redis client (no-op if REDIS_URL is unset).
-getRedis();
+// Redis is temporarily disabled until REDIS_URL is configured with a valid URL.
+// import { getRedis } from "./lib/redis";
+// getRedis();
 
 // --- Health check -------------------------------------------------------------
 app.get("/health", (_req: Request, res: Response) => {
