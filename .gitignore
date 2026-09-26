@@ -22,3 +22,6 @@ out/
 
 # TS build info
 *.tsbuildinfo
+
+# Local environment file
+*.en

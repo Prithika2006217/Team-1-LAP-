@@ -6,9 +6,31 @@
 import { useRouter } from "next/navigation";
 import { Bell, LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+
+// Get user name from cookie/localStorage (mock auth - replace with real auth when ready)
+function getUserName(): string {
+  if (typeof window === "undefined") return "User";
+  
+  // Try to get from localStorage first
+  const localName = localStorage.getItem("userName");
+  if (localName) return localName;
+  
+  // Try to get from cookie
+  const match = document.cookie.match(/(?:^|;\s*)userName=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  
+  // Fallback to generic name
+  return "User";
+}
 
 export function Header() {
   const router = useRouter();
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    setUserName(getUserName());
+  }, []);
 
   function handleLogout() {
     // Clear the auth cookie and return to login. (Base placeholder.)
@@ -30,7 +52,7 @@ export function Header() {
 
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-semibold text-slate-900">Tenzorce User</p>
+          <p className="text-sm font-semibold text-slate-900">{userName}</p>
           <p className="text-xs text-slate-400">Signed in</p>
         </div>
         <div className="h-9 w-9 rounded-full bg-primary/10" />

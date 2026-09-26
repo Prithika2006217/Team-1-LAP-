@@ -57,7 +57,8 @@ should be built.
 cd backend
 cp .env.example .env        # fill in Neon + Upstash + JWT values
 npm install
-npm run prisma:generate     # needs network access to binaries.prisma.sh
+npm run prisma:generate
+     # needs network access to binaries.prisma.sh
 npm run prisma:migrate      # create tables in Neon
 npm run prisma:seed         # demo tests + leaderboard users (optional)
 npm run dev                 # http://localhost:5000
