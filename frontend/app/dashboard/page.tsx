@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 const LearningOverviewDialog = dynamic(
   () => import("@/components/dashboard/learning-overview-dialog").then(mod => ({ default: mod.LearningOverviewDialog })),
@@ -197,7 +198,9 @@ export default function DashboardPage() {
 
         {/* Learning Streak Indicator */}
         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-50 border border-orange-200">
-          <Flame className="h-5 w-5 text-orange-600" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">
+            <Flame className="h-5 w-5 text-orange-600" />
+          </div>
           <span className="text-lg font-bold text-orange-600">{learningStreak.current}</span>
         </div>
       </div>
@@ -247,7 +250,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Bottom: Supporting Text */}
-              <div className="text-center leading-tight">
+              <div className="text-center leading-tight px-2 mb-2">
                 <p className="text-xs text-slate-500">Keep learning to improve</p>
                 <p className="text-xs text-slate-500">your overall progress</p>
               </div>
@@ -255,66 +258,86 @@ export default function DashboardPage() {
           </button>
 
           {/* Statistics Cards - Top Row */}
-          <Card>
-            <CardContent className="px-3 py-2">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  {emptyStats[0].icon}
+          <Link href="/dashboard/study-space">
+            <Card className="group cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 h-full">
+              <CardContent className="px-3 py-2 h-full">
+                <div className="flex items-center justify-between gap-2.5 h-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      {emptyStats[0].icon}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium text-slate-600">{emptyStats[0].title}</p>
+                      <p className="text-lg font-bold text-slate-900">{emptyStats[0].value}</p>
+                      <p className="text-[10px] text-slate-500">{emptyStats[0].subtitle}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-slate-600">{emptyStats[0].title}</p>
-                  <p className="text-lg font-bold text-slate-900">{emptyStats[0].value}</p>
-                  <p className="text-[10px] text-slate-500">{emptyStats[0].subtitle}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card>
-            <CardContent className="px-3 py-2">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  {emptyStats[1].icon}
+          <Link href="/dashboard/practice-arena">
+            <Card className="group cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 h-full">
+              <CardContent className="px-3 py-2 h-full">
+                <div className="flex items-center justify-between gap-2.5 h-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      {emptyStats[1].icon}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium text-slate-600">{emptyStats[1].title}</p>
+                      <p className="text-lg font-bold text-slate-900">{emptyStats[1].value}</p>
+                      <p className="text-[10px] text-slate-500">{emptyStats[1].subtitle}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-slate-600">{emptyStats[1].title}</p>
-                  <p className="text-lg font-bold text-slate-900">{emptyStats[1].value}</p>
-                  <p className="text-[10px] text-slate-500">{emptyStats[1].subtitle}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Statistics Cards - Bottom Row */}
-          <Card>
-            <CardContent className="px-3 py-2">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  {emptyStats[2].icon}
+          <Link href="/dashboard/assessment-center">
+            <Card className="group cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 h-full">
+              <CardContent className="px-3 py-2 h-full">
+                <div className="flex items-center justify-between gap-2.5 h-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      {emptyStats[2].icon}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium text-slate-600">{emptyStats[2].title}</p>
+                      <p className="text-lg font-bold text-slate-900">{emptyStats[2].value}</p>
+                      <p className="text-[10px] text-slate-500">{emptyStats[2].subtitle}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-slate-600">{emptyStats[2].title}</p>
-                  <p className="text-lg font-bold text-slate-900">{emptyStats[2].value}</p>
-                  <p className="text-[10px] text-slate-500">{emptyStats[2].subtitle}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card>
-            <CardContent className="px-3 py-2">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  {emptyStats[3].icon}
+          <Link href="/dashboard/my-progress">
+            <Card className="group cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 h-full">
+              <CardContent className="px-3 py-2 h-full">
+                <div className="flex items-center justify-between gap-2.5 h-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      {emptyStats[3].icon}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium text-slate-600">{emptyStats[3].title}</p>
+                      <p className="text-lg font-bold text-slate-900">{emptyStats[3].value}</p>
+                      <p className="text-[10px] text-slate-500">{emptyStats[3].subtitle}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-slate-600">{emptyStats[3].title}</p>
-                  <p className="text-lg font-bold text-slate-900">{emptyStats[3].value}</p>
-                  <p className="text-[10px] text-slate-500">{emptyStats[3].subtitle}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Right Column: Your Progress This Week */}
@@ -366,7 +389,9 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-orange-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                </div>
                 Needs Your Attention
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700">
@@ -378,8 +403,8 @@ export default function DashboardPage() {
           <CardContent>
             {attentionItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 mb-3">
-                  <AlertCircle className="h-6 w-6 text-orange-400" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-orange-100 mb-4">
+                  <AlertCircle className="h-8 w-8 text-orange-400" />
                 </div>
                 <p className="text-sm text-slate-500">Nothing needs attention</p>
                 <p className="text-xs text-slate-400 mt-1">You're all caught up!</p>
@@ -407,7 +432,9 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <Bell className="h-5 w-5 text-primary" />
+                </div>
                 Announcements
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
@@ -418,8 +445,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary mb-3">
-                <Bell className="h-6 w-6 text-slate-400" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
+                <Bell className="h-8 w-8 text-slate-400" />
               </div>
               <p className="text-sm text-slate-500">No announcements yet</p>
               <p className="text-xs text-slate-400 mt-1">New announcements will appear here.</p>
@@ -431,7 +458,7 @@ export default function DashboardPage() {
       {/* Learning, Activity, Recommendations Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Continue Learning */}
-        <Card>
+        <Card className="border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader>
             <CardTitle className="text-lg">Continue Learning</CardTitle>
           </CardHeader>
@@ -453,15 +480,15 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card>
+        <Card className="border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader>
             <CardTitle className="text-lg">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             {emptyRecentActivities.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary mb-3">
-                  <TrendingUp className="h-6 w-6 text-slate-400" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
+                  <TrendingUp className="h-8 w-8 text-slate-400" />
                 </div>
                 <p className="text-sm text-slate-500">No recent activity yet</p>
                 <p className="text-xs text-slate-400 mt-1">Start learning to see your activity here</p>
@@ -470,10 +497,10 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 {emptyRecentActivities.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      {activity.type === "test" && <FileText className="h-4 w-4 text-primary" />}
-                      {activity.type === "module" && <BookOpen className="h-4 w-4 text-primary" />}
-                      {activity.type === "practice" && <TrendingUp className="h-4 w-4 text-primary" />}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      {activity.type === "test" && <FileText className="h-5 w-5 text-primary" />}
+                      {activity.type === "module" && <BookOpen className="h-5 w-5 text-primary" />}
+                      {activity.type === "practice" && <TrendingUp className="h-5 w-5 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">
@@ -494,15 +521,15 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recommended For You */}
-        <Card>
+        <Card className="border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader>
             <CardTitle className="text-lg">Recommended For You</CardTitle>
           </CardHeader>
           <CardContent>
             {recommendations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary mb-3">
-                  <Zap className="h-6 w-6 text-slate-400" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
+                  <Zap className="h-8 w-8 text-slate-400" />
                 </div>
                 <p className="text-sm text-slate-500">No recommendations yet</p>
                 <p className="text-xs text-slate-400 mt-1">Start learning to get personalized recommendations</p>
@@ -512,10 +539,10 @@ export default function DashboardPage() {
                 {recommendations.map((rec) => (
                   <div key={rec.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                        {rec.type === "practice" && <TrendingUp className="h-4 w-4 text-primary" />}
-                        {rec.type === "learn" && <BookOpen className="h-4 w-4 text-primary" />}
-                        {rec.type === "quiz" && <FileText className="h-4 w-4 text-primary" />}
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        {rec.type === "practice" && <TrendingUp className="h-5 w-5 text-primary" />}
+                        {rec.type === "learn" && <BookOpen className="h-5 w-5 text-primary" />}
+                        {rec.type === "quiz" && <FileText className="h-5 w-5 text-primary" />}
                       </div>
                       <Badge variant="secondary" className="text-xs">
                         {rec.reason}
