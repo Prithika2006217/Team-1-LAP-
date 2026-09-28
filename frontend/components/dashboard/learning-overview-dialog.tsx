@@ -13,12 +13,14 @@ interface LearningOverviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   performanceData: Array<{ week: string; score: number }>;
+  overallProgress: number;
 }
 
 export function LearningOverviewDialog({
   open,
   onOpenChange,
   performanceData,
+  overallProgress,
 }: LearningOverviewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,11 +49,11 @@ export function LearningOverviewDialog({
                   fill="none"
                   stroke="hsl(var(--primary))"
                   strokeWidth="3"
-                  strokeDasharray="0, 100"
+                  strokeDasharray={`${overallProgress}, 100`}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-slate-900">0%</span>
+                <span className="text-2xl font-bold text-slate-900">{overallProgress}%</span>
               </div>
             </div>
             <div className="flex-1 space-y-3">

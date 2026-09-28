@@ -15,9 +15,9 @@ import {
   Play,
   Plus,
   AlertCircle,
-  Eye,
   Zap,
-  Flame
+  Flame,
+  Bell
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -129,6 +129,9 @@ const recommendations: Recommendation[] = [];
 
 const performanceData: PerformanceData[] = [];
 
+// Overall progress data (will be populated from API when backend is ready)
+const overallProgress = 0; // 0-100, represents combined learning/practice/assessment/consistency progress
+
 // Learning streak data (will be populated from API when backend is ready)
 const learningStreak: LearningStreak = {
   current: 0,
@@ -182,99 +185,153 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {greeting}, {userName} 👋
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Let's continue your learning journey.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {greeting}, {userName} 👋
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Let's continue your learning journey.
+          </p>
+        </div>
+
+        {/* Learning Streak Indicator */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-50 border border-orange-200">
+          <Flame className="h-5 w-5 text-orange-600" />
+          <span className="text-lg font-bold text-orange-600">{learningStreak.current}</span>
+        </div>
       </div>
 
-      {/* Top Row: Your Overview + Learning Streak + Weekly Progress */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Your Overview Card */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                  <Eye className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Your Overview</h3>
-                  <p className="text-xs text-slate-500">View detailed learning insights</p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0"
-                onClick={() => setOverviewOpen(true)}
-              >
-                View Overview
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Lazy-loaded Learning Overview Dialog */}
-        <LearningOverviewDialog
-          open={overviewOpen}
-          onOpenChange={setOverviewOpen}
-          performanceData={performanceData}
-        />
-
-        {/* Learning Streak Card */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-4">
-            <div className="space-y-3">
+      {/* Top Row: Your Overview + Statistics Cards */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Left Column: Overall Progress + Statistics Cards */}
+        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3 lg:grid-rows-2" style={{ gridTemplateColumns: '180px 1fr 1fr' }}>
+          {/* Your Overview Card - Clickable with Circular Progress */}
+          <button
+            onClick={() => setOverviewOpen(true)}
+            className="group relative w-full row-span-2 border border-slate-200 bg-white rounded-xl shadow-sm px-2 py-1 hover:bg-slate-50 hover:border-primary/30 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            aria-label="View detailed learning overview"
+          >
+            <div className="flex h-full flex-col justify-between">
+              {/* Header: Title + Arrow */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">Learning Streak</h3>
-                </div>
-                <span className="text-2xl font-bold text-orange-600">{learningStreak.current}</span>
+                <h3 className="text-sm font-semibold text-slate-900">Overall Progress</h3>
+                <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200" />
               </div>
-              <div className="flex justify-between">
-                {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
-                  <div key={day} className="flex flex-col items-center gap-1">
-                    <div 
-                      className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                        learningStreak.weekly[index] 
-                          ? "bg-orange-100 text-orange-600" 
-                          : "bg-slate-100 text-slate-400"
-                      }`}
-                    >
-                      {day}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-center text-slate-500">
-                {learningStreak.current > 0 
-                  ? "Keep learning to maintain your streak!" 
-                  : "Start learning to build your streak!"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Weekly Progress Card */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="pb-2">
+              {/* Center: Circular Progress */}
+              <div className="flex items-center justify-center">
+                <div className="relative h-24 w-24">
+                  <svg className="h-full w-full transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#e2e8f0"
+                      strokeWidth="3"
+                    />
+                    <path
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth="3"
+                      strokeDasharray={`${overallProgress}, 100`}
+                      className="group-hover:stroke-primary/80 transition-colors"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-slate-900 group-hover:scale-110 transition-transform duration-200">
+                      {overallProgress}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom: Supporting Text */}
+              <div className="text-center leading-tight">
+                <p className="text-xs text-slate-500">Keep learning to improve</p>
+                <p className="text-xs text-slate-500">your overall progress</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Statistics Cards - Top Row */}
+          <Card>
+            <CardContent className="px-3 py-2">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                  {emptyStats[0].icon}
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-600">{emptyStats[0].title}</p>
+                  <p className="text-lg font-bold text-slate-900">{emptyStats[0].value}</p>
+                  <p className="text-[10px] text-slate-500">{emptyStats[0].subtitle}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="px-3 py-2">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                  {emptyStats[1].icon}
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-600">{emptyStats[1].title}</p>
+                  <p className="text-lg font-bold text-slate-900">{emptyStats[1].value}</p>
+                  <p className="text-[10px] text-slate-500">{emptyStats[1].subtitle}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Statistics Cards - Bottom Row */}
+          <Card>
+            <CardContent className="px-3 py-2">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                  {emptyStats[2].icon}
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-600">{emptyStats[2].title}</p>
+                  <p className="text-lg font-bold text-slate-900">{emptyStats[2].value}</p>
+                  <p className="text-[10px] text-slate-500">{emptyStats[2].subtitle}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="px-3 py-2">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                  {emptyStats[3].icon}
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-600">{emptyStats[3].title}</p>
+                  <p className="text-lg font-bold text-slate-900">{emptyStats[3].value}</p>
+                  <p className="text-[10px] text-slate-500">{emptyStats[3].subtitle}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Your Progress This Week */}
+        <Card className="border-slate-200 shadow-sm h-full">
+          <CardHeader className="pb-1 px-4 pt-3">
             <CardTitle className="text-sm">Your Progress This Week</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              <div className="flex items-end justify-between gap-1 h-20">
+          <CardContent className="pt-0 px-4 pb-3 h-full">
+            <div className="flex flex-col justify-between h-full space-y-2">
+              <div className="flex items-end justify-between gap-1 flex-1">
                 {weeklyProgress.map((day) => (
                   <div key={day.day} className="flex-1 flex flex-col items-center gap-1">
-                    <div 
+                    <div
                       className={`w-full rounded-t-sm transition-all hover:bg-primary/80 ${
                         day.hours > 0 ? 'bg-primary' : 'bg-slate-200'
                       }`}
-                      style={{ 
+                      style={{
                         height: `${(day.hours / maxHours) * 100}%`,
                         minHeight: '4px'
                       }}
@@ -294,30 +351,13 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {emptyStats.map((stat, index) => (
-          <Card key={index}>
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  {stat.icon}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-slate-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-                  <p className="text-xs text-slate-500">{stat.subtitle}</p>
-                  {stat.trend && (
-                    <p className="text-xs text-emerald-600 font-medium mt-1">
-                      {stat.trend}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Lazy-loaded Learning Overview Dialog */}
+      <LearningOverviewDialog
+        open={overviewOpen}
+        onOpenChange={setOverviewOpen}
+        performanceData={performanceData}
+        overallProgress={overallProgress}
+      />
 
       {/* Attention & Assessments Row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -362,13 +402,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming Assessments Card */}
+        {/* Announcements Card */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Upcoming Assessments
+                <Bell className="h-5 w-5 text-primary" />
+                Announcements
               </CardTitle>
               <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
                 View All
@@ -377,46 +417,13 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {emptyUpcomingAssessments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary mb-3">
-                  <Calendar className="h-6 w-6 text-slate-400" />
-                </div>
-                <p className="text-sm text-slate-500">No upcoming assessments</p>
-                <p className="text-xs text-slate-400 mt-1">Check back later for scheduled assessments</p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary mb-3">
+                <Bell className="h-6 w-6 text-slate-400" />
               </div>
-            ) : (
-              emptyUpcomingAssessments.map((assessment) => (
-                <div key={assessment.id} className="space-y-3 rounded-lg border border-slate-100 p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <h4 className="font-semibold text-slate-900 text-sm">
-                        {assessment.title}
-                      </h4>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <Calendar className="h-3 w-3" />
-                        <span>{assessment.date}</span>
-                        <span>•</span>
-                        <span>{assessment.time}</span>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="shrink-0">
-                      {assessment.type}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <Clock className="h-3 w-3" />
-                      <span>{assessment.duration}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs">
-                      Details
-                      <ArrowRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
+              <p className="text-sm text-slate-500">No announcements yet</p>
+              <p className="text-xs text-slate-400 mt-1">New announcements will appear here.</p>
+            </div>
           </CardContent>
         </Card>
       </div>
