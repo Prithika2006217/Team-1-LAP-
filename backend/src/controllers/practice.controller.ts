@@ -115,6 +115,7 @@ export async function getTestById(req: Request, res: Response) {
               id: true,
               type: true,
               prompt: true,
+              difficulty: true,
               options: true,
               marks: true,
               negativeMarks: true,

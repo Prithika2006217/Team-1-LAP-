@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CodeEditor } from "@/components/practice/code-editor";
 import { fetcher, postJSON, getCurrentUserId } from "@/lib/api";
-import type { TestBlueprint, Question } from "@/lib/practice-types";
+import type { TestBlueprint, Question, Difficulty } from "@/lib/practice-types";
 
 export default function TestRunnerPage() {
   const { testId } = useParams<{ testId: string }>();
@@ -25,26 +25,68 @@ export default function TestRunnerPage() {
     fetcher
   );
   const test = data?.test;
+  const [selectedDifficulty, setSelectedDifficulty] =
+  useState<Difficulty | "ALL">("ALL");
 
   // Flatten questions for navigation; keep section grouping for the palette.
-  const flat = useMemo(
-    () => (test ? test.sections.flatMap((s) => s.questions) : []),
-    [test]
-  );
+  const filteredSections = useMemo(() => {
+  if (!test) return [];
+
+  return test.sections
+    .map((section) => {
+      // Remove duplicate questions
+      const uniqueQuestions = section.questions.filter(
+        (question, index, questions) =>
+          index ===
+          questions.findIndex(
+            (q) =>
+              q.prompt.trim().toLowerCase() ===
+              question.prompt.trim().toLowerCase()
+          )
+      );
+
+      // Filter by difficulty
+      const questions =
+        selectedDifficulty === "ALL"
+          ? uniqueQuestions
+          : uniqueQuestions.filter(
+              (question) => question.difficulty === selectedDifficulty
+            );
+
+      return {
+        ...section,
+        questions,
+      };
+    })
+    .filter((section) => section.questions.length > 0);
+}, [test, selectedDifficulty]);
+
+const flat = useMemo(
+  () => filteredSections.flatMap((section) => section.questions),
+  [filteredSections]
+);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
 
   // Initialise current question + timer once the blueprint arrives.
   useEffect(() => {
-    if (test) {
-      setSecondsLeft((prev) => prev ?? test.durationMinutes * 60);
-      setCurrentId((prev) => prev ?? test.sections[0]?.questions[0]?.id ?? null);
-    }
-  }, [test]);
+  if (test) {
+    setSecondsLeft((prev) => prev ?? test.durationMinutes * 60);
+  }
+}, [test]);
+
+useEffect(() => {
+  if (flat.length === 0) {
+    setCurrentId(null);
+  } else if (!currentId || !flat.some((q) => q.id === currentId)) {
+    setCurrentId(flat[0].id);
+  }
+}, [flat, currentId]);
 
   const current: Question | undefined = flat.find((q) => q.id === currentId);
 
@@ -147,6 +189,23 @@ export default function TestRunnerPage() {
           </span>
         </div>
       </div>
+      {/* Difficulty Filter */}
+<div className="flex flex-wrap gap-2">
+  {(["ALL", "EASY", "MEDIUM", "HARD"] as const).map((difficulty) => (
+    <Button
+      key={difficulty}
+      variant={
+        selectedDifficulty === difficulty ? "default" : "outline"
+      }
+      onClick={() => setSelectedDifficulty(difficulty)}
+    >
+      {difficulty === "ALL"
+        ? "All"
+        : difficulty.charAt(0) +
+          difficulty.slice(1).toLowerCase()}
+    </Button>
+  ))}
+</div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_18rem]">
         {/* Question viewer */}
@@ -236,7 +295,7 @@ export default function TestRunnerPage() {
           <Card>
             <CardContent className="space-y-4 p-4">
               <p className="text-sm font-semibold text-slate-900">Question Palette</p>
-              {test.sections.map((s) => (
+              {filteredSections.map((s) => (
                 <div key={s.id}>
                   <p className="mb-2 text-xs font-medium text-slate-500">{s.title}</p>
                   <div className="grid grid-cols-5 gap-2">

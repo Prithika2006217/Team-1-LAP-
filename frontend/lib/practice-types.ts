@@ -30,6 +30,7 @@ export interface Question {
   id: string;
   type: QuestionType;
   prompt: string;
+  difficulty: Difficulty;
   options: QuestionOption[] | null;
   marks: number;
   negativeMarks: number;
