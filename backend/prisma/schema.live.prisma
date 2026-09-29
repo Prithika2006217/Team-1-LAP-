@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DIRECT_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  passwordHash   String
+  name           String
+  role           Role             @default(STUDENT)
+  isActive       Boolean          @default(true)
+  points         Int              @default(0)
+  currentStreak  Int              @default(0)
+  lastActivityAt DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  branch         String?
+  rollNo         String?
+  submissions    TestSubmission[]
+
+  @@index([email])
+  @@index([role])
+  @@index([points])
+}
+
+model Test {
+  id              String           @id @default(cuid())
+  title           String
+  category        TestCategory
+  difficulty      Difficulty       @default(MEDIUM)
+  company         String?
+  durationMinutes Int
+  questionCount   Int              @default(0)
+  attempts        Int              @default(0)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sections        Section[]
+  submissions     TestSubmission[]
+
+  @@index([category])
+  @@index([difficulty])
+}
+
+model Section {
+  id               String     @id @default(cuid())
+  testId           String
+  title            String
+  order            Int        @default(0)
+  timeLimitMinutes Int?
+  questions        Question[]
+  test             Test       @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  sectionId     String
+  type          QuestionType @default(MCQ)
+  prompt        String
+  options       Json?
+  correctAnswer String?
+  marks         Float        @default(1)
+  negativeMarks Float        @default(0)
+  order         Int          @default(0)
+  section       Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+model TestSubmission {
+  id             String   @id @default(cuid())
+  userId         String
+  testId         String
+  score          Float
+  correctCount   Int
+  incorrectCount Int
+  percentage     Float
+  answers        Json
+  createdAt      DateTime @default(now())
+  test           Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testId])
+  @@index([userId, createdAt])
+}
+
+model Assessment {
+  id                   String                 @id
+  title                String
+  type                 String
+  company              String?
+  questions            Int
+  durationMinutes      Int
+  sections             Int
+  startTime            DateTime
+  endTime              DateTime
+  status               AssessmentStatus       @default(DRAFT)
+  proctoringEnabled    Boolean                @default(true)
+  fullScreenRequired   Boolean                @default(true)
+  tabSwitchRestricted  Boolean                @default(true)
+  maxAttempts          Int                    @default(1)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  AssessmentSubmission AssessmentSubmission[]
+
+  @@index([endTime])
+  @@index([startTime])
+  @@index([status])
+}
+
+model AssessmentSubmission {
+  id             String     @id
+  userId         String
+  assessmentId   String
+  score          Float
+  correctCount   Int
+  incorrectCount Int
+  percentage     Float
+  percentile     Float?
+  status         String
+  answers        Json?
+  startedAt      DateTime   @default(now())
+  completedAt    DateTime?
+  Assessment     Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@index([status])
+  @@index([userId])
+}
+
+enum Role {
+  STUDENT
+  TRAINER
+  COLLEGE_TPO
+  SUPER_ADMIN
+}
+
+enum TestCategory {
+  APTITUDE
+  CODING
+  DSA
+  DOMAIN
+  COMPANY_SPECIFIC
+  INTERVIEW
+  AI_SKILLS
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionType {
+  MCQ
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  PREDICT_OUTPUT
+  PSEUDOCODE
+  CODING
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+

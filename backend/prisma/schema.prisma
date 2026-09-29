@@ -58,6 +58,8 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
+  branch       String?
+  rollNo       String?
   role         Role     @default(STUDENT)
   isActive     Boolean  @default(true)
 

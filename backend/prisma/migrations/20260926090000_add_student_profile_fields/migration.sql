@@ -1,0 +1,3 @@
+ALTER TABLE "User"
+ADD COLUMN "branch" TEXT,
+ADD COLUMN "rollNo" TEXT;

@@ -64,15 +64,19 @@ app.use("/api/practice", practiceRoutes);
 app.use("/api/practice", examRoutes);
 
 // --- Start --------------------------------------------------------------------
-const server = app.listen(PORT, () => {
-  console.log(`[tenzorce-api] listening on http://localhost:${PORT}`);
-});
+const server = require.main === module
+  ? app.listen(PORT, () => {
+      console.log(`[tenzorce-api] listening on http://localhost:${PORT}`);
+    })
+  : undefined;
 
 // --- Graceful shutdown --------------------------------------------------------
 async function shutdown() {
   console.log("\n[tenzorce-api] shutting down...");
   await prisma.$disconnect();
-  server.close(() => process.exit(0));
+  server?.close(() => process.exit(0));
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+
+export { app };

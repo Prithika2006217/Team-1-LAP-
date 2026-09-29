@@ -3,6 +3,7 @@
 // slate canvas per the Tenzorce design system.
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+    import { Suspense } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +12,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Offset content by the fixed sidebar width on large screens. */}
       <div className="lg:pl-64">
         <Header />
-        <main className="p-6">{children}</main>
+            <Suspense fallback={<main className="p-6" />}>
+              <main className="p-6">{children}</main>
+            </Suspense>
       </div>
     </div>
   );

@@ -6,7 +6,6 @@
 // cheap). Real token verification happens in the API and/or server components.
 //
 //   - Visiting /dashboard/* without a token  -> redirect to /login
-//   - Visiting /login while already logged in -> redirect to /dashboard
 // ---------------------------------------------------------------------------
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -15,21 +14,20 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   const isDashboard = pathname.startsWith("/dashboard");
-  const isLogin = pathname === "/login";
 
   if (isDashboard && !token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isLogin && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   return NextResponse.next();
 }
 
-// Only run middleware on the routes that need it.
+// Only run middleware on dashboard routes.
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/", "/dashboard/:path*"],
 };
