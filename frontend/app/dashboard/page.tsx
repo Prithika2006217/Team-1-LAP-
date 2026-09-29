@@ -7,8 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen,
   FileText,
-  Calendar,
-  Award,
+  Target,
+  ShieldCheck,
+  Trophy,
   Clock,
   TrendingUp,
   ArrowRight,
@@ -22,6 +23,8 @@ import {
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import useSWR from "swr";
+import { fetcher, getCurrentUserId } from "@/lib/api";
 
 const LearningOverviewDialog = dynamic(
   () => import("@/components/dashboard/learning-overview-dialog").then(mod => ({ default: mod.LearningOverviewDialog })),
@@ -92,31 +95,42 @@ interface LearningStreak {
   weekly: boolean[];
 }
 
+interface StreakData {
+  userId: string;
+  streak: boolean[];
+  days: { label: string; date: string; completed: boolean }[];
+}
+
+interface ActivityData {
+  date: string;
+  count: number;
+}
+
 // Empty state data (will be replaced with real API data when backend is ready)
 const emptyStats: StatCard[] = [
   {
     title: "Modules in Progress",
     value: "0",
     subtitle: "Start learning today",
-    icon: <BookOpen className="h-5 w-5 text-primary" />,
+    icon: <BookOpen className="h-5 w-5 text-purple-600" />,
   },
   {
     title: "Practice Tests Taken",
     value: "0",
     subtitle: "Begin practicing now",
-    icon: <FileText className="h-5 w-5 text-primary" />,
+    icon: <Target className="h-5 w-5 text-green-600" />,
   },
   {
     title: "Upcoming Assessments",
     value: "0",
     subtitle: "No assessments scheduled",
-    icon: <Calendar className="h-5 w-5 text-primary" />,
+    icon: <ShieldCheck className="h-5 w-5 text-blue-600" />,
   },
   {
     title: "Points",
     value: "0",
     subtitle: "Start earning points",
-    icon: <Award className="h-5 w-5 text-primary" />,
+    icon: <Trophy className="h-5 w-5 text-orange-600" />,
   }
 ];
 
@@ -139,18 +153,7 @@ const learningStreak: LearningStreak = {
   weekly: [false, false, false, false, false, false, false] // M T W T F S S
 };
 
-// Weekly progress data (will be populated from API when backend is ready)
-const weeklyProgress = [
-  { day: "Mon", hours: 0 },
-  { day: "Tue", hours: 0 },
-  { day: "Wed", hours: 0 },
-  { day: "Thu", hours: 0 },
-  { day: "Fri", hours: 0 },
-  { day: "Sat", hours: 0 },
-  { day: "Sun", hours: 0 }
-];
-
-const maxHours = 1; // Avoid division by zero
+// Weekly progress data fetched from API
 
 // Get user name from cookie/localStorage (mock auth - replace with real auth when ready)
 function getUserName(): string {
@@ -178,6 +181,72 @@ export default function DashboardPage() {
 
   const [userName, setUserName] = useState("User");
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 8, 1)); // September 2026
+
+  // Weekly progress data fetched from API
+  const { data: streakData, error: streakError } = useSWR<StreakData>(
+    getCurrentUserId() ? `/api/practice/streak/${getCurrentUserId()}` : null,
+    fetcher
+  );
+
+  // Generate calendar days for current month
+  const getCalendarDays = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDay = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const adjustedStartDay = startDay === 0 ? 6 : startDay - 1; // Convert to Monday-based (0 = Monday)
+    const totalDays = lastDay.getDate();
+
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
+
+    // Add days from previous month to fill first week
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = adjustedStartDay - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthLastDay - i),
+        isCurrentMonth: false
+      });
+    }
+
+    // Add days of current month
+    for (let i = 1; i <= totalDays; i++) {
+      days.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true
+      });
+    }
+
+    // Add days from next month to fill last week
+    const remainingDays = 42 - days.length; // 6 rows × 7 days = 42
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false
+      });
+    }
+
+    return days;
+  };
+
+  const calendarDays = getCalendarDays(currentMonth);
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const getCellIntensity = (date: Date) => {
+    const dateStr = date.toISOString().slice(0, 10);
+    const dayData = streakData?.days.find(d => d.date === dateStr);
+    if (!dayData || !dayData.completed) return 0;
+    return 1; // Currently only 2 levels based on available data
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
 
   useEffect(() => {
     setUserName(getUserName());
@@ -263,7 +332,7 @@ export default function DashboardPage() {
               <CardContent className="px-3 py-2 h-full">
                 <div className="flex items-center justify-between gap-2.5 h-full">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 shrink-0">
                       {emptyStats[0].icon}
                     </div>
                     <div className="space-y-0.5">
@@ -283,7 +352,7 @@ export default function DashboardPage() {
               <CardContent className="px-3 py-2 h-full">
                 <div className="flex items-center justify-between gap-2.5 h-full">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-100 shrink-0">
                       {emptyStats[1].icon}
                     </div>
                     <div className="space-y-0.5">
@@ -304,7 +373,7 @@ export default function DashboardPage() {
               <CardContent className="px-3 py-2 h-full">
                 <div className="flex items-center justify-between gap-2.5 h-full">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 shrink-0">
                       {emptyStats[2].icon}
                     </div>
                     <div className="space-y-0.5">
@@ -324,7 +393,7 @@ export default function DashboardPage() {
               <CardContent className="px-3 py-2 h-full">
                 <div className="flex items-center justify-between gap-2.5 h-full">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 shrink-0">
                       {emptyStats[3].icon}
                     </div>
                     <div className="space-y-0.5">
@@ -340,35 +409,81 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Right Column: Your Progress This Week */}
+        {/* Right Column: Learning Activity Heat Map */}
         <Card className="border-slate-200 shadow-sm h-full">
-          <CardHeader className="pb-1 px-4 pt-3">
-            <CardTitle className="text-sm">Your Progress This Week</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 px-4 pb-3 h-full">
-            <div className="flex flex-col justify-between h-full space-y-2">
-              <div className="flex items-end justify-between gap-1 flex-1">
-                {weeklyProgress.map((day) => (
-                  <div key={day.day} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className={`w-full rounded-t-sm transition-all hover:bg-primary/80 ${
-                        day.hours > 0 ? 'bg-primary' : 'bg-slate-200'
-                      }`}
-                      style={{
-                        height: `${(day.hours / maxHours) * 100}%`,
-                        minHeight: '4px'
-                      }}
-                    />
-                    <span className="text-[10px] text-slate-500">{day.day}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600">Total this week</span>
-                <span className="font-semibold text-slate-900">
-                  {weeklyProgress.reduce((sum, day) => sum + day.hours, 0).toFixed(1)} hrs
+          <CardContent className="p-3 h-full flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-900">Learning Activity</h3>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToPreviousMonth}
+                  className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  aria-label="Previous month"
+                >
+                  <span className="text-slate-400 text-xs">←</span>
+                </button>
+                <span className="text-xs font-medium text-slate-700 min-w-[85px] text-center">
+                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </span>
+                <button
+                  onClick={goToNextMonth}
+                  className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  aria-label="Next month"
+                >
+                  <span className="text-slate-400 text-xs">→</span>
+                </button>
               </div>
+            </div>
+
+            {/* Heat Map Container - Centered as one group */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                {/* Day Labels */}
+                <div className="grid grid-cols-7 gap-2">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                    <span key={day} className="text-[10px] text-slate-500 text-center w-3">
+                      {day}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Heat Map Grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarDays.map((day, index) => {
+                    const intensity = getCellIntensity(day.date);
+                    const intensityClasses = [
+                      'bg-slate-100', // 0 - no activity
+                      'bg-primary/30', // 1 - low activity
+                      'bg-primary/50', // 2 - medium activity
+                      'bg-primary/70', // 3 - high activity
+                      'bg-primary'     // 4 - very high activity
+                    ];
+                    return (
+                      <div
+                        key={index}
+                        className={`w-3 h-3 rounded-sm transition-all hover:scale-125 ${
+                          day.isCurrentMonth ? intensityClasses[intensity] : 'bg-transparent'
+                        }`}
+                        title={`${day.date.toLocaleDateString()}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Legend - Bottom Right */}
+            <div className="flex items-center justify-end gap-2 mt-3">
+              <span className="text-[9px] text-slate-400">Less</span>
+              <div className="flex gap-0.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-slate-100" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary/30" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary/50" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary/70" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
+              </div>
+              <span className="text-[9px] text-slate-400">More</span>
             </div>
           </CardContent>
         </Card>

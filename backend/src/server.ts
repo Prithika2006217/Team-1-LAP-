@@ -16,6 +16,7 @@ import authRoutes from "./routes/auth.routes";
 import studyRoutes from "./routes/study.routes";
 import practiceRoutes from "./routes/practice.routes";
 import examRoutes from "./routes/exam.routes";
+import assessmentRoutes from "./routes/assessment.routes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -62,6 +63,8 @@ app.use("/api/study", studyRoutes);
 // Practice Arena: read endpoints + live exam engine (both under /api/practice).
 app.use("/api/practice", practiceRoutes);
 app.use("/api/practice", examRoutes);
+// Assessment Center: read endpoints for student view.
+app.use("/api/assessments", assessmentRoutes);
 
 // --- Start --------------------------------------------------------------------
 const server = app.listen(PORT, () => {
