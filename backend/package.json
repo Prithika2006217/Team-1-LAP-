@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "seed:assessments": "ts-node prisma/seed-assessments.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

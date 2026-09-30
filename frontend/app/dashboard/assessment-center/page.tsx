@@ -61,28 +61,28 @@ export default function AssessmentCenterPage() {
 
   const userId = getCurrentUserId();
 
-  // Fetch live assessments
+  // Fetch live assessments (no authentication required)
   const { data: liveData, error: liveError, isLoading: liveLoading } = useSWR(
-    userId ? `/api/assessments/live` : null,
+    `/api/assessments/live`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  // Fetch upcoming assessments
+  // Fetch upcoming assessments (no authentication required)
   const { data: upcomingData, error: upcomingError, isLoading: upcomingLoading } = useSWR(
-    userId ? `/api/assessments/upcoming` : null,
+    `/api/assessments/upcoming`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  // Fetch completed assessments
+  // Fetch completed assessments (authentication required)
   const { data: completedData, error: completedError, isLoading: completedLoading } = useSWR(
     userId ? `/api/assessments/completed` : null,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  // Fetch assessment attempts
+  // Fetch assessment attempts (authentication required)
   const { data: attemptsData, error: attemptsError, isLoading: attemptsLoading } = useSWR(
     userId ? `/api/assessments/attempts` : null,
     fetcher,

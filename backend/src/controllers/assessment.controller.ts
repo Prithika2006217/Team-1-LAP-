@@ -18,12 +18,6 @@ function getCurrentUserId(req: Request): string | null {
 // Returns assessments that are currently LIVE and within their time window
 export async function getLiveAssessments(req: Request, res: Response) {
   try {
-    const userId = getCurrentUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     const now = new Date();
 
     const assessments = await prisma.assessment.findMany({
@@ -62,12 +56,6 @@ export async function getLiveAssessments(req: Request, res: Response) {
 // Returns assessments scheduled to start in the future
 export async function getUpcomingAssessments(req: Request, res: Response) {
   try {
-    const userId = getCurrentUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
     const now = new Date();
 
     const assessments = await prisma.assessment.findMany({
