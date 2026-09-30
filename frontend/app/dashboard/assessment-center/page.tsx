@@ -57,7 +57,7 @@ interface CompletedAssessment {
 export default function AssessmentCenterPage() {
   const [timeRemaining, setTimeRemaining] = useState<{ [key: string]: string }>({});
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed" | "attempts">("live");
+  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed">("live");
 
   const userId = getCurrentUserId();
 
@@ -82,24 +82,16 @@ export default function AssessmentCenterPage() {
     { revalidateOnFocus: false }
   );
 
-  // Fetch assessment attempts (authentication required)
-  const { data: attemptsData, error: attemptsError, isLoading: attemptsLoading } = useSWR(
-    userId ? `/api/assessments/attempts` : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-
   const liveAssessments = liveData?.assessments || [];
   const upcomingAssessments = upcomingData?.assessments || [];
   const completedAssessments = completedData?.completed || [];
-  const attempts = attemptsData?.attempts || [];
 
   const handleContactSupport = () => {
     alert('Support contact feature coming soon!');
   };
 
   // Tab selection handler
-  const handleTabChange = (sectionId: "live" | "upcoming" | "completed" | "attempts") => {
+  const handleTabChange = (sectionId: "live" | "upcoming" | "completed") => {
     setActiveSection(sectionId);
   };
 
@@ -186,16 +178,11 @@ export default function AssessmentCenterPage() {
               id: "completed", 
               label: "Completed", 
               icon: <CheckCircle className="h-4 w-4" /> 
-            },
-            { 
-              id: "attempts", 
-              label: "My Attempts", 
-              icon: <FileText className="h-4 w-4" /> 
             }
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed" | "attempts")}
+              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed")}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-2.5 rounded-md ${
                 activeSection === tab.id
                   ? "border-primary text-primary bg-primary/10 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
@@ -517,92 +504,50 @@ export default function AssessmentCenterPage() {
               </div>
             </>
           )}
-
-          {/* My Attempts Section */}
-          {activeSection === "attempts" && (
-            <>
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
-                  <FileText className="h-4 w-4 text-primary" />
-                </div>
-                My Attempts
-              </h2>
-              <div className="bg-white border border-slate-200 rounded-lg p-6">
-                {attemptsLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-100">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-6 w-16" />
-                        <Skeleton className="h-8 w-16" />
-                      </div>
-                    ))}
-                  </div>
-                ) : attemptsError ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-red-100 mb-4">
-                      <AlertCircle className="h-8 w-8 text-red-600" />
-                    </div>
-                    <p className="text-sm text-slate-500">Failed to load attempts</p>
-                    <p className="text-xs text-slate-400 mt-1">Please try again later</p>
-                  </div>
-                ) : attempts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
-                      <FileText className="h-8 w-8 text-primary" />
-                    </div>
-                    <p className="text-sm text-slate-500">No attempt history yet</p>
-                    <p className="text-xs text-slate-400 mt-1">Your assessment attempts will appear here</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Assessment</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Score</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attempts.map((attempt: CompletedAssessment) => (
-                          <tr key={attempt.id} className="border-b border-slate-100 last:border-0">
-                            <td className="py-3 px-4 text-sm text-slate-900">{attempt.title}</td>
-                            <td className="py-3 px-4 text-sm text-slate-600">
-                              {attempt.date ? new Date(attempt.date).toLocaleDateString() : "N/A"}
-                            </td>
-                            <td className="py-3 px-4 text-sm font-medium text-slate-900">{attempt.score}%</td>
-                            <td className="py-3 px-4">
-                              <Badge
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {attempt.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Button variant="ghost" size="sm" className="text-primary">
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         {/* Right Column - Information Panels */}
         <div className="space-y-6">
+          {/* Assessment Guidelines */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                </div>
+                Assessment Guidelines
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                  Ensure stable internet connection
+                </li>
+                <li className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                  Close all other applications
+                </li>
+                <li className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                  Do not switch tabs or windows
+                </li>
+                <li className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                  Use a quiet and well-lit environment
+                </li>
+              </ul>
+              <Button
+                variant="ghost"
+                className="text-primary mt-4 px-0 hover:bg-transparent"
+                onClick={() => setShowGuidelinesModal(true)}
+              >
+                View All Guidelines
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Performance Snapshot */}
           <Card className="border-slate-200 shadow-sm">
             <CardHeader>
@@ -706,46 +651,6 @@ export default function AssessmentCenterPage() {
               </p>
               <Button className="w-full" variant="outline" onClick={handleContactSupport}>
                 Contact Support
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Assessment Guidelines */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                </div>
-                Assessment Guidelines
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  Ensure stable internet connection
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  Close all other applications
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  Do not switch tabs or windows
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  Use a quiet and well-lit environment
-                </li>
-              </ul>
-              <Button
-                variant="ghost"
-                className="text-primary mt-4 px-0 hover:bg-transparent"
-                onClick={() => setShowGuidelinesModal(true)}
-              >
-                View All Guidelines
-                <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </CardContent>
           </Card>
