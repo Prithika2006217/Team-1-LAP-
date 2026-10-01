@@ -70,9 +70,11 @@ model Question {
   marks         Float        @default(1)
   negativeMarks Float        @default(0)
   order         Int          @default(0)
+  difficulty    Difficulty   @default(MEDIUM)
   section       Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([sectionId])
+  @@index([difficulty])
 }
 
 model TestSubmission {
