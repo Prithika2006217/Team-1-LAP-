@@ -191,7 +191,7 @@ export default function DashboardPage() {
 
   // Generate 6-month heat map data (month-based with actual days)
   const generateHeatMapData = (period: number) => {
-    const months: { name: string; weeks: Date[][] }[] = [];
+    const months: { name: string; columns: Date[][] }[] = [];
     const currentMonth = new Date().getMonth();
     const currentYear = 2026;
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -208,33 +208,21 @@ export default function DashboardPage() {
       const year = startYear + Math.floor((startMonth + m) / 12);
       const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
       
-      // Create weeks for this month (only actual days of the month)
-      const weeks: Date[][] = [];
-      const firstDay = new Date(year, monthIndex, 1);
-      const dayOfWeek = firstDay.getDay();
-      
-      // Generate weeks with only actual days of the month
-      let currentWeek: Date[] = [];
+      // Create 5 columns with 7 rows each (vertical flow)
+      const columns: Date[][] = [[], [], [], [], []];
       
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, monthIndex, d);
-        currentWeek.push(date);
-        
-        // If it's Saturday, end the week
-        if (date.getDay() === 6) {
-          weeks.push(currentWeek);
-          currentWeek = [];
+        // Calculate which column (0-4) and row (0-6)
+        const columnIndex = Math.floor((d - 1) / 7);
+        if (columnIndex < 5) {
+          columns[columnIndex].push(date);
         }
-      }
-      
-      // Add remaining days if any
-      if (currentWeek.length > 0) {
-        weeks.push(currentWeek);
       }
       
       months.push({
         name: monthNames[monthIndex],
-        weeks: weeks
+        columns: columns
       });
     }
     
@@ -471,13 +459,13 @@ export default function DashboardPage() {
         <Card className="border-slate-200 shadow-sm">
           <CardContent className="p-3 flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-1">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Learning Activity</h3>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-slate-500 mt-0.5">
                   {streakData?.days.filter(d => d.completed).length || 0} submissions in the past 6 months
                 </p>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-slate-500">
                   Total active days: {streakData?.days.filter(d => d.completed).length || 0}
                 </p>
               </div>
@@ -501,15 +489,19 @@ export default function DashboardPage() {
             </div>
 
             {/* 6-month Heat Map */}
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-1 overflow-x-auto">
+            <div className="flex flex-col">
+              <div className="flex gap-5 overflow-x-auto">
                 {generateHeatMapData(heatMapPeriod).map((month, monthIndex) => (
                   <div key={monthIndex} className="flex flex-col gap-0.5 shrink-0">
-                    {/* Month grid */}
-                    <div className="flex flex-col gap-0.5">
-                      {month.weeks.map((week, weekIndex) => (
-                        <div key={weekIndex} className="flex gap-0.5">
-                          {week.map((day, dayIndex) => {
+                    {/* Month label above the grid */}
+                    <span className="text-[8px] text-slate-400 text-center">
+                      {month.name}
+                    </span>
+                    {/* Month grid - 5 columns x 7 rows with vertical flow */}
+                    <div className="flex gap-0.5">
+                      {month.columns.map((column, colIndex) => (
+                        <div key={colIndex} className="flex flex-col gap-0.5">
+                          {column.map((day, dayIndex) => {
                             const intensity = getHeatMapCellIntensity(day);
                             const intensityClasses = [
                               'bg-slate-200', // 0 - no activity
@@ -523,7 +515,7 @@ export default function DashboardPage() {
                             return (
                               <div
                                 key={dayIndex}
-                                className={`w-2.5 h-2.5 rounded-sm transition-all hover:scale-125 cursor-pointer ${
+                                className={`w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-pointer ${
                                   intensityClasses[intensity]
                                 }`}
                                 title={`${monthNames[day.getMonth()]} ${day.getDate()}, ${day.getFullYear()}`}
@@ -533,23 +525,19 @@ export default function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                    {/* Month label below the grid */}
-                    <span className="text-[8px] text-slate-400 text-center">
-                      {month.name}
-                    </span>
                   </div>
                 ))}
               </div>
 
               {/* Legend - Bottom Right */}
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 mt-1">
                 <span className="text-[9px] text-slate-400">Less</span>
                 <div className="flex gap-0.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-slate-200" />
-                  <div className="w-2.5 h-2.5 rounded-sm bg-green-300" />
-                  <div className="w-2.5 h-2.5 rounded-sm bg-green-500" />
-                  <div className="w-2.5 h-2.5 rounded-sm bg-green-600" />
-                  <div className="w-2.5 h-2.5 rounded-sm bg-green-700" />
+                  <div className="w-3 h-3 rounded-sm bg-slate-200" />
+                  <div className="w-3 h-3 rounded-sm bg-green-300" />
+                  <div className="w-3 h-3 rounded-sm bg-green-500" />
+                  <div className="w-3 h-3 rounded-sm bg-green-600" />
+                  <div className="w-3 h-3 rounded-sm bg-green-700" />
                 </div>
                 <span className="text-[9px] text-slate-400">More</span>
               </div>
