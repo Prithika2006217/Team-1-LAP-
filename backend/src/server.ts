@@ -16,6 +16,7 @@ import authRoutes from "./routes/auth.routes";
 import studyRoutes from "./routes/study.routes";
 import practiceRoutes from "./routes/practice.routes";
 import examRoutes from "./routes/exam.routes";
+import generateTestRoutes from "./routes/generate-test.routes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -62,6 +63,14 @@ app.use("/api/study", studyRoutes);
 // Practice Arena: read endpoints + live exam engine (both under /api/practice).
 app.use("/api/practice", practiceRoutes);
 app.use("/api/practice", examRoutes);
+app.use("/api", generateTestRoutes);
+
+// Keep API failures JSON even when parsing or middleware fails before a controller runs.
+app.use((error: unknown, _req: Request, res: Response, _next: express.NextFunction) => {
+  console.error("Unhandled API error:", error);
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Internal server error" });
+});
 
 // --- Start --------------------------------------------------------------------
 const server = require.main === module

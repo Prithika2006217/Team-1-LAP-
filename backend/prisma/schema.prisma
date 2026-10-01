@@ -119,18 +119,18 @@ model Question {
   sectionId     String
   type          QuestionType @default(MCQ)
   prompt        String       @db.Text
-  // Options for choice questions: [{ id, label, text }]. Null for coding.
+  difficulty    Difficulty   @default(MEDIUM)
   options       Json?
-  // Correct answer key. NEVER returned in test-taking payloads.
-  // For MCQ/TRUE_FALSE: option id. For MULTIPLE_SELECT: JSON array of ids.
   correctAnswer String?
   marks         Float        @default(1)
-  negativeMarks Float        @default(0)
+  negativeMarks Float         @default(0)
   order         Int          @default(0)
   section       Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([sectionId])
+  @@index([difficulty])
 }
+
 
 model TestSubmission {
   id             String   @id @default(cuid())
@@ -152,3 +152,4 @@ model TestSubmission {
   // Streak computation scans a user's recent submissions.
   @@index([userId, createdAt])
 }
+

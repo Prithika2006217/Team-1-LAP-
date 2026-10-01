@@ -7,7 +7,7 @@
 //   - cache hot reads in Redis
 // ---------------------------------------------------------------------------
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response as ExpressResponse } from "express";
 
 const router = Router();
 
@@ -166,7 +166,7 @@ async function generateWithRetry(
   apiKey: string,
   prompt: string,
   maxRetries = 3
-): Promise<Response | null> {
+): Promise<globalThis.Response | null> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
 
@@ -266,7 +266,7 @@ async function generateWithRetry(
 
 router.post(
   "/course/generate",
-  async (req: Request, res: Response) => {
+  async (req: Request, res: ExpressResponse) => {
     const topic =
       typeof req.body?.topic === "string"
         ? req.body.topic.trim()
@@ -388,7 +388,7 @@ router.post(
 
 router.post(
   "/assessment/questions",
-  async (req: Request, res: Response) => {
+  async (req: Request, res: ExpressResponse) => {
     const topic =
       typeof req.body?.topic === "string"
         ? req.body.topic.trim()
@@ -496,7 +496,7 @@ router.post(
 
 router.get(
   "/modules",
-  (_req: Request, res: Response) => {
+  (_req: Request, res: ExpressResponse) => {
     res.status(501).json({
       message:
         "Not implemented — study modules is an intern task.",

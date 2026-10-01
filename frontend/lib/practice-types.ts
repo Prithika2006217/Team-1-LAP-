@@ -1,5 +1,22 @@
-// Shared Practice Arena types (mirror the backend payloads).
-export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+// ---------------------------------------------------------------------------
+// Practice Arena types
+// ---------------------------------------------------------------------------
+
+export type Difficulty =
+  | "EASY"
+  | "MEDIUM"
+  | "HARD";
+
+export type GeneratedDifficulty = "easy" | "medium" | "hard";
+
+export interface GeneratedQuestion {
+  id: string;
+  difficulty: GeneratedDifficulty;
+  question: string;
+  options: [string, string, string, string];
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+}
 
 export type QuestionType =
   | "MCQ"
@@ -8,6 +25,10 @@ export type QuestionType =
   | "PREDICT_OUTPUT"
   | "PSEUDOCODE"
   | "CODING";
+
+// ---------------------------------------------------------------------------
+// Test list
+// ---------------------------------------------------------------------------
 
 export interface TestListItem {
   id: string;
@@ -20,6 +41,10 @@ export interface TestListItem {
   attempts: number;
 }
 
+// ---------------------------------------------------------------------------
+// Question
+// ---------------------------------------------------------------------------
+
 export interface QuestionOption {
   id: string;
   label: string;
@@ -29,21 +54,37 @@ export interface QuestionOption {
 export interface Question {
   id: string;
   type: QuestionType;
-  prompt: string;
+
+  // Difficulty of the individual question.
   difficulty: Difficulty;
+
+  prompt: string;
+
   options: QuestionOption[] | null;
+
   marks: number;
+
   negativeMarks: number;
+
   order: number;
 }
+
+// ---------------------------------------------------------------------------
+// Section
+// ---------------------------------------------------------------------------
 
 export interface Section {
   id: string;
   title: string;
   order: number;
   timeLimitMinutes: number | null;
+
   questions: Question[];
 }
+
+// ---------------------------------------------------------------------------
+// Test
+// ---------------------------------------------------------------------------
 
 export interface TestBlueprint {
   id: string;
@@ -51,8 +92,13 @@ export interface TestBlueprint {
   category: string;
   difficulty: Difficulty;
   durationMinutes: number;
+
   sections: Section[];
 }
+
+// ---------------------------------------------------------------------------
+// Leaderboard
+// ---------------------------------------------------------------------------
 
 export interface LeaderboardEntry {
   id: string;
@@ -61,8 +107,30 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
+// ---------------------------------------------------------------------------
+// Streak
+// ---------------------------------------------------------------------------
+
 export interface StreakDay {
   label: string;
   date: string;
   completed: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Generated Practice Test
+// ---------------------------------------------------------------------------
+
+export interface GeneratedPracticeTest {
+  testId: string;
+  title: string;
+  topic: string;
+
+  totalQuestions: number;
+
+  counts: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
 }
