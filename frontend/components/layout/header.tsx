@@ -9,6 +9,23 @@ import Link from "next/link";
 import { Bell, ChevronDown, LogOut, Search, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+
+// Get user name from cookie/localStorage (mock auth - replace with real auth when ready)
+function getUserName(): string {
+  if (typeof window === "undefined") return "User";
+  
+  // Try to get from localStorage first
+  const localName = localStorage.getItem("userName");
+  if (localName) return localName;
+  
+  // Try to get from cookie
+  const match = document.cookie.match(/(?:^|;\s*)userName=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  
+  // Fallback to generic name
+  return "User";
+}
+
 type SessionDisplayUser = {
   name?: string;
   email?: string;
@@ -55,6 +72,11 @@ function UserAvatar() {
 
 export function Header() {
   const router = useRouter();
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    setUserName(getUserName());
+  }, []);
   const [profileOpen, setProfileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
@@ -98,7 +120,7 @@ export function Header() {
 
       <div className="relative flex items-center gap-3" ref={profileRef}>
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-semibold text-slate-900">Tenzorce User</p>
+          <p className="text-sm font-semibold text-slate-900">{userName}</p>
           <p className="text-xs text-slate-400">Signed in</p>
         </div>
         <button type="button" onClick={() => setProfileOpen((open) => !open)} className="flex items-center gap-1 rounded-lg p-1 hover:bg-slate-100" aria-label="Open profile menu" aria-expanded={profileOpen}>

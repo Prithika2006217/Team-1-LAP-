@@ -32,7 +32,12 @@ export function SidebarNav() {
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
+            <div className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
+              isActive ? "bg-primary/20" : "bg-slate-100"
+            )}>
+              <Icon className="h-5 w-5 shrink-0" />
+            </div>
             {item.label}
           </Link>
         );

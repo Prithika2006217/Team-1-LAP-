@@ -16,6 +16,7 @@ import authRoutes from "./routes/auth.routes";
 import studyRoutes from "./routes/study.routes";
 import practiceRoutes from "./routes/practice.routes";
 import examRoutes from "./routes/exam.routes";
+import assessmentRoutes from "./routes/assessment.routes";
 import generateTestRoutes from "./routes/generate-test.routes";
 
 const app = express();
@@ -63,6 +64,8 @@ app.use("/api/study", studyRoutes);
 // Practice Arena: read endpoints + live exam engine (both under /api/practice).
 app.use("/api/practice", practiceRoutes);
 app.use("/api/practice", examRoutes);
+// Assessment Center: read endpoints for student view.
+app.use("/api/assessments", assessmentRoutes);
 app.use("/api", generateTestRoutes);
 
 // Keep API failures JSON even when parsing or middleware fails before a controller runs.

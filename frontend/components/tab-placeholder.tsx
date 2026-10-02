@@ -29,8 +29,8 @@ export function TabPlaceholder({
 
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <Construction className="h-6 w-6 text-primary" />
+          <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
+            <Construction className="h-8 w-8 text-primary" />
           </span>
           <p className="text-base font-semibold text-slate-900">This tab is a base placeholder</p>
           <p className="max-w-md text-sm text-slate-500">{todo}</p>
