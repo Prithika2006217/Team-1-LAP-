@@ -5,16 +5,26 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:500
 
 /** SWR fetcher. Prefixes the API base and parses JSON. */
 export const fetcher = async (path: string) => {
-  const res = await fetch(`${API_BASE}${path}`);
+  const userId = getCurrentUserId();
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (userId) {
+    headers["x-user-id"] = userId;
+  }
+  const res = await fetch(`${API_BASE}${path}`, { headers });
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 };
 
 /** POST JSON to the API. */
 export async function postJSON<T = unknown>(path: string, body: unknown): Promise<T> {
+  const userId = getCurrentUserId();
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (userId) {
+    headers["x-user-id"] = userId;
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
   return res.json();

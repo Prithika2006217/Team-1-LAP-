@@ -20,7 +20,8 @@ import {
   Calendar,
   TrendingUp,
   FileText,
-  Eye
+  Eye,
+  History
 } from "lucide-react";
 import { fetcher, getCurrentUserId } from "@/lib/api";
 
@@ -57,7 +58,7 @@ interface CompletedAssessment {
 export default function AssessmentCenterPage() {
   const [timeRemaining, setTimeRemaining] = useState<{ [key: string]: string }>({});
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed">("live");
+  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed" | "attempts">("live");
 
   const userId = getCurrentUserId();
 
@@ -82,16 +83,24 @@ export default function AssessmentCenterPage() {
     { revalidateOnFocus: false }
   );
 
+  // Fetch attempts (authentication required)
+  const { data: attemptsData, error: attemptsError, isLoading: attemptsLoading } = useSWR(
+    userId ? `/api/assessments/attempts` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
   const liveAssessments = liveData?.assessments || [];
   const upcomingAssessments = upcomingData?.assessments || [];
   const completedAssessments = completedData?.completed || [];
+  const attempts = attemptsData?.attempts || [];
 
   const handleContactSupport = () => {
     alert('Support contact feature coming soon!');
   };
 
   // Tab selection handler
-  const handleTabChange = (sectionId: "live" | "upcoming" | "completed") => {
+  const handleTabChange = (sectionId: "live" | "upcoming" | "completed" | "attempts") => {
     setActiveSection(sectionId);
   };
 
@@ -164,25 +173,30 @@ export default function AssessmentCenterPage() {
       <div className="sticky top-0 z-10 border-b border-slate-200 py-2">
         <div className="flex gap-6 overflow-x-auto scrollbar-hide">
           {[
-            { 
-              id: "live", 
-              label: "Live Now", 
-              icon: <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> 
+            {
+              id: "live",
+              label: "Live Now",
+              icon: <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
             },
-            { 
-              id: "upcoming", 
-              label: "Upcoming", 
-              icon: <Calendar className="h-4 w-4" /> 
+            {
+              id: "upcoming",
+              label: "Upcoming",
+              icon: <Calendar className="h-4 w-4" />
             },
-            { 
-              id: "completed", 
-              label: "Completed", 
-              icon: <CheckCircle className="h-4 w-4" /> 
+            {
+              id: "completed",
+              label: "Completed",
+              icon: <CheckCircle className="h-4 w-4" />
+            },
+            {
+              id: "attempts",
+              label: "My Attempts",
+              icon: <History className="h-4 w-4" />
             }
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed")}
+              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed" | "attempts")}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-2.5 rounded-md ${
                 activeSection === tab.id
                   ? "border-primary text-primary bg-primary/10 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
@@ -232,94 +246,43 @@ export default function AssessmentCenterPage() {
                     <p className="text-sm text-slate-500">Failed to load live assessments</p>
                     <p className="text-xs text-slate-400 mt-1">Please try again later</p>
                   </div>
-                ) : liveAssessments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
-                      <Clock className="h-8 w-8 text-primary" />
-                    </div>
-                    <p className="text-sm text-slate-500">No live assessments at the moment</p>
-                    <p className="text-xs text-slate-400 mt-1">Check back later for upcoming assessments</p>
-                  </div>
                 ) : (
-                  liveAssessments.map((assessment: Assessment) => (
-                    <div key={assessment.id} className="bg-white border border-slate-200 rounded-lg p-6 hover:border-primary/30 transition-colors">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900">{assessment.title}</h3>
-                          <p className="text-sm text-slate-500 mt-1">{assessment.type}</p>
-                        </div>
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                          <div className="flex items-center gap-1">
-                            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                            Live Now
-                          </div>
-                        </Badge>
+                  <div className="bg-white border border-slate-200 rounded-lg p-6 hover:border-primary/30 transition-colors">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">TCS NQT – Previous Year Questions</h3>
+                        <p className="text-sm text-slate-500 mt-1">TCS NQT 2020</p>
                       </div>
+                      <Badge variant="outline" className="text-xs">
+                        Previous Year Paper
+                      </Badge>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-slate-400" />
-                          <span className="text-sm text-slate-600">{assessment.questions} Questions</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-slate-400" />
-                          <span className="text-sm text-slate-600">{assessment.durationMinutes} mins</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-slate-400" />
-                          <span className="text-sm text-slate-600">{assessment.sections} Sections</span>
-                        </div>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm text-slate-600">26 Questions</span>
                       </div>
-
-                      <div className="flex items-center gap-2 mb-4 text-xs text-slate-500">
-                        <Calendar className="h-3 w-3" />
-                        <span>
-                          {new Date(assessment.startTime).toLocaleString()} -{" "}
-                          {new Date(assessment.endTime).toLocaleString()}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm text-slate-600">2020</span>
                       </div>
-
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {assessment.company && (
-                          <Badge variant="outline" className="text-xs">
-                            {assessment.company}
-                          </Badge>
-                        )}
-                        {assessment.proctoringEnabled && (
-                          <Badge variant="outline" className="text-xs">
-                            <Shield className="h-3 w-3 mr-1" />
-                            Proctored
-                          </Badge>
-                        )}
-                        {assessment.fullScreenRequired && (
-                          <Badge variant="outline" className="text-xs">
-                            <Monitor className="h-3 w-3 mr-1" />
-                            Full Screen
-                          </Badge>
-                        )}
-                        {assessment.tabSwitchRestricted && (
-                          <Badge variant="outline" className="text-xs">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Tab Switch Restricted
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs">
-                          Max Attempts: {assessment.maxAttempts}
-                        </Badge>
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm text-slate-600">Numerical Ability</span>
                       </div>
+                    </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
-                          <Clock className="h-4 w-4" />
-                          Time Remaining: {timeRemaining[assessment.id] || "Calculating..."}
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <div></div>
+                      <Link href="/dashboard/assessment-center/tcs-nqt-2020-numerical">
                         <Button className="bg-primary hover:bg-primary/90">
                           <Play className="h-4 w-4 mr-2" />
-                          Enter Exam
+                          Start Questions
                         </Button>
-                      </div>
+                      </Link>
                     </div>
-                  ))
+                  </div>
                 )}
               </div>
             </>
@@ -494,6 +457,83 @@ export default function AssessmentCenterPage() {
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
                               </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* My Attempts Section */}
+          {activeSection === "attempts" && (
+            <>
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-100">
+                  <History className="h-4 w-4 text-purple-600" />
+                </div>
+                My Attempts
+              </h2>
+              <div className="bg-white border border-slate-200 rounded-lg p-6">
+                {attemptsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-100">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-6 w-16" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                    ))}
+                  </div>
+                ) : attemptsError ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-red-100 mb-4">
+                      <AlertCircle className="h-8 w-8 text-red-600" />
+                    </div>
+                    <p className="text-sm text-slate-500">Failed to load attempts</p>
+                    <p className="text-xs text-slate-400 mt-1">Please try again later</p>
+                  </div>
+                ) : attempts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 mb-4">
+                      <History className="h-8 w-8 text-primary" />
+                    </div>
+                    <p className="text-sm text-slate-500">No attempts yet</p>
+                    <p className="text-xs text-slate-400 mt-1">Your test attempts will appear here</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Test</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Score</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Correct</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Incorrect</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Percentage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attempts.map((attempt: any) => (
+                          <tr key={attempt.id} className="border-b border-slate-100 last:border-0">
+                            <td className="py-3 px-4 text-sm text-slate-900">{attempt.testTitle || "Test"}</td>
+                            <td className="py-3 px-4 text-sm text-slate-600">
+                              {attempt.createdAt ? new Date(attempt.createdAt).toLocaleDateString() : "N/A"}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-medium text-slate-900">{attempt.score ?? "N/A"}</td>
+                            <td className="py-3 px-4 text-sm text-green-600">{attempt.correctCount ?? "N/A"}</td>
+                            <td className="py-3 px-4 text-sm text-red-600">{attempt.incorrectCount ?? "N/A"}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-slate-900">
+                              {attempt.percentage !== null && attempt.percentage !== undefined
+                                ? `${attempt.percentage.toFixed(2)}%`
+                                : "N/A"}
                             </td>
                           </tr>
                         ))}

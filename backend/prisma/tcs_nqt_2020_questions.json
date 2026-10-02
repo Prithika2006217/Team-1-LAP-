@@ -1,0 +1,170 @@
+{
+  "source": "User-uploaded TCS NQT (Numerical Ability) Official Memory Based Paper 2020.pdf",
+  "exam": "TCS NQT",
+  "year": 2020,
+  "section": "Numerical Ability",
+  "questionCount": 26,
+  "questions": [
+    {
+      "number": 1,
+      "prompt": "A man has to travel 50 km in two hours. He could 20 km in one hour, and then had to stop for 10 minutes for refueling. By what factor should he increase his speed with reference to that of the first hour so as to be able to complete the journey as per schedule?",
+      "options": ["1.2", "1.8", "2.4", "1.5"],
+      "correctOption": 1
+    },
+    {
+      "number": 2,
+      "prompt": "If (x + 10)% of 240 is 60% more than x% of 180, then 15% of (x + 20) is what percent less than 25% of x?",
+      "options": ["16", "15", "15 (1/2)", "19 (1/21)"],
+      "correctOption": 1
+    },
+    {
+      "number": 3,
+      "prompt": "Five consecutive positive even numbers are arranged in ascending order. The sum of squares of 3rd number and 5th number is equal to 400. Then the average of the five numbers is",
+      "options": ["8", "10", "12", "14"],
+      "correctOption": 3
+    },
+    {
+      "number": 4,
+      "prompt": "A fruit seller purchased 32 kg grapes for Rs. 960. He dried them to make raisins and would be able to sell raisins for Rs. 65 per kg. He can get 800 gm raisins from 1 kg grapes. Find profit %.",
+      "options": [
+        "Profit 73.33%",
+        "Loss 73.33%",
+        "Profit 26.67%",
+        "Loss 26.67%"
+      ],
+      "correctOption": 1
+    },
+    {
+      "number": 5,
+      "prompt": "What is the sum (in RS) which divided among X Y Z in the proportion 3 : 5 : 7 provides rupees 8000 more to Z than what it would have done to him when the proportion is 11 : 15 : 19?",
+      "options": ["180000", "120000", "175000", "135000"],
+      "correctOption": 1
+    },
+    {
+      "number": 6,
+      "prompt": "Elan, Jeff and Bill together started the business where Elan invested $ 2500 for 8 months, Jeff invested $ 2000 for 12 months and Bill invested $ 6000 for 4 months. If the profit earned from the business is $ 1360, then find the share of Jeff.",
+      "options": ["$ 360", "$ 420", "$ 400", "$ 480"],
+      "correctOption": 4
+    },
+    {
+      "number": 7,
+      "prompt": "The marks scored by a student out of 100 in English and Mathematics at four consecutive monthly tests held in 2019 are presented through a Bar Graph. In each case the marks is a multiple of five. In which month is the difference of marks scored in the two subjects are highest? (Graph values: Jan English 70, Maths 85; Feb English 80, Maths 60; Mar English 75, Maths 60; Apr English 65, Maths 75.)",
+      "options": ["Apr", "Mar", "Feb", "Jan"],
+      "correctOption": 1
+    },
+    {
+      "number": 8,
+      "prompt": "In a class of 25 students, 12 have taken mathematics, 8 have taken mathematics and computer science. The number of students who have taken computer science but NOT mathematics is:",
+      "options": ["13", "8", "4", "17"],
+      "correctOption": 1
+    },
+    {
+      "number": 9,
+      "prompt": "What is the mean proportional (MP) between the MPs of (2/7 & 32/343) and (2 & 1/5000)?",
+      "options": ["3/35", "4/35", "2/35", "2/175"],
+      "correctOption": 1
+    },
+    {
+      "number": 10,
+      "prompt": "Three bells ring simultaneously at 11 a.m. They ring at regular intervals of 20 min., 30 min., 40 min. respectively. The time when all the three bells ring together next is",
+      "options": ["2 p.m.", "1 p.m.", "1:15 p.m.", "1:30 p.m."],
+      "correctOption": 2
+    },
+    {
+      "number": 11,
+      "prompt": "When a number is divided by 12, 16, 18 and 21 it will leave a remainder of 7 in each case find the third smallest number of this type.",
+      "options": ["1015", "2023", "3031", "4039"],
+      "correctOption": 3
+    },
+    {
+      "number": 12,
+      "prompt": "If 5^x 3^y = 225 × 405, find the value of x^(2y) - 3x.",
+      "options": ["27", "81", "125", "25"],
+      "correctOption": 1
+    },
+    {
+      "number": 13,
+      "prompt": "If six digits number 25a64b is divisible by 11. Find the value of (a – b).",
+      "options": ["5", "4", "3", "7"],
+      "correctOption": 1
+    },
+    {
+      "number": 14,
+      "prompt": "The collection numbers below is in ascending order (3, 7, 9, N-1, 15, 18, 19, 20) if the median of data 12.5, what is the value of n?",
+      "options": ["11", "11.5", "12", "10.5"],
+      "correctOption": 1
+    },
+    {
+      "number": 15,
+      "prompt": "A work can be completed by A, B and C in 12 days, 15 days and 24 days respectively. A started the work and worked for 2 days then B joined A and together they worked for 5 days. C completed the remaining work alone. Find the time taken by C to complete remaining work.",
+      "options": ["1 days", "2 days", "5 days", "3 days"],
+      "correctOption": 2
+    },
+    {
+      "number": 16,
+      "prompt": "Pipe X, Y and Z can fill a cistern 8 hrs, 12 hrs and 24 hrs respectively. All three began to fill the cistern together but X and Y left 4 hrs and 3 hrs respectively before filling the cistern. What is the total time taken by all of them to fill the cistern?",
+      "options": ["10 hrs", "7 hrs", "3 hrs", "14 hrs"],
+      "correctOption": 2
+    },
+    {
+      "number": 17,
+      "prompt": "What is the mean deviation of the data 8, 9, 12, 15, 16, 20, 24, 30, 32, 34?",
+      "options": ["10.2", "9.6", "8", "0"],
+      "correctOption": 1
+    },
+    {
+      "number": 18,
+      "prompt": "How much percentage is (0.025% of 240% of 1.5%) of 0.9?",
+      "options": ["0.01", "10", "0.1", "1"],
+      "correctOption": 1
+    },
+    {
+      "number": 19,
+      "prompt": "Dalip can row 42 km downstream in 2 hours and the same distance upstream in 2 hours and 48 minutes. How much time will he take to row 31.5 km downstream and 22.5 km upstream?",
+      "options": ["3 h 15 m", "3 h", "2 h 50 m", "3 h 5 m"],
+      "correctOption": 2
+    },
+    {
+      "number": 20,
+      "prompt": "A student goes to college at the rate of 5 km/h and reaches 12 minutes late. If he travels at the speed of 8 km/h he is 15 minutes early. Find the distance between his college and his starting point?",
+      "options": ["7 km", "9 km", "5 km", "6 km"],
+      "correctOption": 4
+    },
+    {
+      "number": 21,
+      "prompt": "If the positive square root of (√90 + √80) is multiplied by (√2 - 1) and the product is raised to the power of four, the result would be",
+      "options": ["100", "1600", "11520000", "10"],
+      "correctOption": 1
+    },
+    {
+      "number": 22,
+      "prompt": "The average of 41 numbers is 62. The average of the first 21 numbers is 56 and that of the last 21 numbers is 70. If the 21st number is removed, then what will be the average of the remaining numbers?",
+      "options": ["64.25", "66.75", "68.85", "60.95"],
+      "correctOption": 4
+    },
+    {
+      "number": 23,
+      "prompt": "In a competitive exam, 5 marks are awarded for every correct answer and for every wrong answer 2 marks are deducted. Sathwik scored 32 marks in this examination. If 4 marks had been awarded for each correct answer and 1 mark is deducted for each incorrect answer, Sathwik should have scored 34 marks. If Sathwik attempted all the questions, how many questions were there in the test?",
+      "options": ["12", "26", "14", "20"],
+      "correctOption": 1
+    },
+    {
+      "number": 24,
+      "prompt": "Calculate the ratio in which Jeff Bezos mix two varieties of flour costing Rs. 70 per kg and Rs. 75 per kg so that he may gain of 10%. When the selling price of the mixture is Rs. 79.20 per kg.",
+      "options": ["3 : 2", "3 : 5", "3 : 4", "4 : 5"],
+      "correctOption": 1
+    },
+    {
+      "number": 25,
+      "prompt": "A sum invested on simple interest grows to Rs. 22500 and Rs. 25500 in seven and nine years respectively. What is the rate percentage of the interest?",
+      "options": ["9.6", "13.5", "12.5", "7.5"],
+      "correctOption": 1
+    },
+    {
+      "number": 26,
+      "prompt": "The work done by (x - 1) men in (x + 1) days and the work done by (x + 1) men in (x + 2) days are in the ratio 5 : 6. The value of x is:",
+      "options": ["16", "10", "8", "6"],
+      "correctOption": 1
+    }
+  ]
+}

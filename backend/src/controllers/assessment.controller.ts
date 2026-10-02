@@ -146,6 +146,7 @@ export async function getCompletedAssessments(req: Request, res: Response) {
 
 // GET /api/assessments/attempts
 // Returns all assessment attempts for the authenticated student
+// Includes both AssessmentSubmission (Assessment Center) and TestSubmission (Practice Arena)
 export async function getAssessmentAttempts(req: Request, res: Response) {
   try {
     const userId = getCurrentUserId(req);
@@ -154,7 +155,8 @@ export async function getAssessmentAttempts(req: Request, res: Response) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const submissions = await prisma.assessmentSubmission.findMany({
+    // Fetch AssessmentSubmission records (Assessment Center)
+    const assessmentSubmissions = await prisma.assessmentSubmission.findMany({
       where: {
         userId,
       },
@@ -179,22 +181,69 @@ export async function getAssessmentAttempts(req: Request, res: Response) {
       orderBy: { startedAt: "desc" },
     });
 
-    const attempts = submissions.map((sub) => ({
+    // Fetch TestSubmission records (Practice Arena)
+    const testSubmissions = await prisma.testSubmission.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        testId: true,
+        score: true,
+        percentage: true,
+        correctCount: true,
+        incorrectCount: true,
+        createdAt: true,
+        test: {
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            company: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Map AssessmentSubmission attempts
+    const assessmentAttempts = assessmentSubmissions.map((sub) => ({
       id: sub.id,
-      assessmentId: sub.assessmentId,
-      title: sub.Assessment.title,
-      type: sub.Assessment.type,
+      type: "assessment",
+      testId: sub.assessmentId,
+      testTitle: sub.Assessment.title,
+      testType: sub.Assessment.type,
       company: sub.Assessment.company,
       date: sub.startedAt.toISOString(),
-      startedAt: sub.startedAt.toISOString(),
-      completedAt: sub.completedAt ? sub.completedAt.toISOString() : null,
       score: Math.round(sub.percentage),
+      correctCount: null,
+      incorrectCount: null,
       percentage: sub.percentage,
-      percentile: sub.percentile,
-      status: sub.status,
+      createdAt: sub.startedAt.toISOString(),
     }));
 
-    res.json({ attempts });
+    // Map TestSubmission attempts
+    const testAttempts = testSubmissions.map((sub) => ({
+      id: sub.id,
+      type: "practice",
+      testId: sub.testId,
+      testTitle: sub.test.title,
+      testType: sub.test.category,
+      company: sub.test.company,
+      date: sub.createdAt.toISOString(),
+      score: sub.score,
+      correctCount: sub.correctCount,
+      incorrectCount: sub.incorrectCount,
+      percentage: sub.percentage,
+      createdAt: sub.createdAt.toISOString(),
+    }));
+
+    // Combine and sort by date
+    const allAttempts = [...assessmentAttempts, ...testAttempts].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    res.json({ attempts: allAttempts });
   } catch (error) {
     console.error("Error fetching assessment attempts:", error);
     res.status(500).json({ message: "Failed to fetch assessment attempts" });

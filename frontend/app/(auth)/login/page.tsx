@@ -51,14 +51,33 @@ function LoginForm({ role, onSignup }: { role: string; onSignup: () => void }) {
     if (!validate()) return;
 
     setLoading(true);
-    // --- MOCK auth (base only) -------------------------------------------
-    // Interns: replace with a fetch to the backend, then set the real token.
-    const dummyToken = `dummy.${role}.${Date.now()}`;
-    document.cookie = `token=${dummyToken}; path=/; max-age=86400`;
-    // Use the name entered by the user
-    localStorage.setItem("userName", name.trim());
-    document.cookie = `userName=${encodeURIComponent(name.trim())}; path=/; max-age=86400`;
-    router.push("/dashboard");
+    try {
+      // Try to signup/login user to get a real database ID
+      const response = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.user) {
+        // Set real user ID from database
+        document.cookie = `uid=${encodeURIComponent(data.user.id)}; path=/; max-age=86400`;
+        document.cookie = `token=dummy.${data.user.role}.${Date.now()}; path=/; max-age=86400`;
+        localStorage.setItem("userName", name.trim());
+        document.cookie = `userName=${encodeURIComponent(name.trim())}; path=/; max-age=86400`;
+        router.push("/dashboard");
+      } else if (response.status === 409) {
+        // User already exists - need to implement real login or use different credentials
+        setError("An account with that email already exists. Please sign up with a different email or use the Sign Up form to create a new account.");
+      } else {
+        setError(data.message || "Unable to sign in.");
+      }
+    } catch (error) {
+      setError("Unable to connect to server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "seed:assessments": "ts-node prisma/seed-assessments.ts",
+    "seed:tcs-nqt-2020": "ts-node prisma/seed-tcs-nqt-2020.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
