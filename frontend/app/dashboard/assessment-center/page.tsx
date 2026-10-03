@@ -34,7 +34,8 @@ import {
   Camera,
   Mic,
   RefreshCw,
-  MicOff
+  MicOff,
+  Code
 } from "lucide-react";
 import { fetcher, getCurrentUserId } from "@/lib/api";
 
@@ -72,7 +73,7 @@ export default function AssessmentCenterPage() {
   const router = useRouter();
   const [timeRemaining, setTimeRemaining] = useState<{ [key: string]: string }>({});
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed" | "attempts">("live");
+  const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed" | "attempts" | "editor">("live");
 
   // System check state
   const [showSystemCheck, setShowSystemCheck] = useState(false);
@@ -126,7 +127,7 @@ export default function AssessmentCenterPage() {
   };
 
   // Tab selection handler
-  const handleTabChange = (sectionId: "live" | "upcoming" | "completed" | "attempts") => {
+  const handleTabChange = (sectionId: "live" | "upcoming" | "completed" | "attempts" | "editor") => {
     setActiveSection(sectionId);
   };
 
@@ -628,11 +629,16 @@ export default function AssessmentCenterPage() {
               id: "attempts",
               label: "My Attempts",
               icon: <History className="h-4 w-4" />
+            },
+            {
+              id: "editor",
+              label: "Code Editor",
+              icon: <Code className="h-4 w-4" />
             }
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed" | "attempts")}
+              onClick={() => handleTabChange(tab.id as "live" | "upcoming" | "completed" | "attempts" | "editor")}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-2.5 rounded-md ${
                 activeSection === tab.id
                   ? "border-primary text-primary bg-primary/10 shadow-[0_0_15px_rgba(79,70,229,0.3)]"
@@ -976,6 +982,34 @@ export default function AssessmentCenterPage() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+
+          {/* Code Editor Section */}
+          {activeSection === "editor" && (
+            <>
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                  <Code className="h-4 w-4 text-primary" />
+                </div>
+                Code Editor
+              </h2>
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Practice Coding</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-600 mb-4">
+                    Practice coding problems with our integrated code editor supporting multiple languages including Python, Java, C, C++, JavaScript, and TypeScript.
+                  </p>
+                  <Link href="/dashboard/editor">
+                    <Button className="gap-2">
+                      <Code className="h-4 w-4" />
+                      Open Code Editor
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             </>
           )}
         </div>

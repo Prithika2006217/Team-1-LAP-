@@ -18,6 +18,7 @@ import practiceRoutes from "./routes/practice.routes";
 import examRoutes from "./routes/exam.routes";
 import assessmentRoutes from "./routes/assessment.routes";
 import generateTestRoutes from "./routes/generate-test.routes";
+import executeRoutes from "./routes/execute.routes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -67,6 +68,8 @@ app.use("/api/practice", examRoutes);
 // Assessment Center: read endpoints for student view.
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api", generateTestRoutes);
+// Code execution endpoint
+app.use("/api/execute", executeRoutes);
 
 // Keep API failures JSON even when parsing or middleware fails before a controller runs.
 app.use((error: unknown, _req: Request, res: Response, _next: express.NextFunction) => {
