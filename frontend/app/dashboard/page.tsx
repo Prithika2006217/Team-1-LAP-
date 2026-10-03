@@ -18,7 +18,9 @@ import {
   AlertCircle,
   Zap,
   Flame,
-  Bell
+  Bell,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -472,18 +474,18 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={goToPreviousPeriod}
-                  className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  className="p-1.5 hover:bg-slate-100 border border-slate-200 rounded-md transition-all hover:border-slate-300 hover:shadow-sm"
                   aria-label="Previous period"
                 >
-                  <span className="text-slate-400 text-xs">←</span>
+                  <ChevronLeft className="h-4 w-4 text-slate-600" />
                 </button>
                 <button
                   onClick={goToNextPeriod}
                   disabled={heatMapPeriod <= 0}
-                  className="p-1 hover:bg-slate-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 hover:bg-slate-100 border border-slate-200 rounded-md transition-all hover:border-slate-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-50 disabled:hover:border-slate-200"
                   aria-label="Next period"
                 >
-                  <span className="text-slate-400 text-xs">→</span>
+                  <ChevronRight className="h-4 w-4 text-slate-600 disabled:text-slate-400" />
                 </button>
               </div>
             </div>

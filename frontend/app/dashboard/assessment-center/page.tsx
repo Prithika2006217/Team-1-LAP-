@@ -1,12 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   AlertCircle,
@@ -21,7 +30,11 @@ import {
   TrendingUp,
   FileText,
   Eye,
-  History
+  History,
+  Camera,
+  Mic,
+  RefreshCw,
+  MicOff
 } from "lucide-react";
 import { fetcher, getCurrentUserId } from "@/lib/api";
 
@@ -56,9 +69,22 @@ interface CompletedAssessment {
 }
 
 export default function AssessmentCenterPage() {
+  const router = useRouter();
   const [timeRemaining, setTimeRemaining] = useState<{ [key: string]: string }>({});
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
   const [activeSection, setActiveSection] = useState<"live" | "upcoming" | "completed" | "attempts">("live");
+
+  // System check state
+  const [showSystemCheck, setShowSystemCheck] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<"checking" | "granted" | "denied">("checking");
+  const [micPermissionStatus, setMicPermissionStatus] = useState<"checking" | "granted" | "denied">("checking");
+  const [micVerificationStatus, setMicVerificationStatus] = useState<"idle" | "listening" | "verified" | "failed">("idle");
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [recognizedText, setRecognizedText] = useState<string>("");
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const recognitionRef = React.useRef<any>(null);
 
   const userId = getCurrentUserId();
 
@@ -158,6 +184,416 @@ export default function AssessmentCenterPage() {
 
     return () => clearInterval(interval);
   }, [liveAssessments, upcomingAssessments]);
+
+  // Ensure video plays when camera status changes
+  useEffect(() => {
+    if (cameraStatus === "granted" && videoRef.current && videoRef.current.srcObject) {
+      console.log("Camera status granted, ensuring video plays");
+      console.log("Video srcObject:", videoRef.current.srcObject);
+      console.log("Video readyState:", videoRef.current.readyState);
+      videoRef.current.play()
+        .then(() => console.log("Video playing after status change"))
+        .catch(e => console.error("Video play error after status change:", e));
+    }
+  }, [cameraStatus]);
+
+  // Ensure video plays when dialog opens
+  useEffect(() => {
+    if (showSystemCheck && videoRef.current && videoRef.current.srcObject) {
+      console.log("Dialog opened, ensuring video plays");
+      console.log("Video srcObject:", videoRef.current.srcObject);
+      videoRef.current.play()
+        .then(() => console.log("Video playing after dialog open"))
+        .catch(e => console.error("Video play error after dialog open:", e));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSystemCheck]);
+
+  // Debug video state periodically
+  useEffect(() => {
+    if (showSystemCheck && videoRef.current) {
+      const interval = setInterval(() => {
+        console.log("Video debug - readyState:", videoRef.current?.readyState, 
+                    "videoWidth:", videoRef.current?.videoWidth,
+                    "videoHeight:", videoRef.current?.videoHeight,
+                    "paused:", videoRef.current?.paused,
+                    "srcObject:", !!videoRef.current?.srcObject);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [showSystemCheck]);
+
+  // System check functions
+  const stopSpeechRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setMicVerificationStatus("idle");
+    setRecognizedText("");
+    setSpeechError(null);
+  }, []);
+
+  const stopMediaStream = useCallback(() => {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      setMediaStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    stopSpeechRecognition();
+  }, [mediaStream, stopSpeechRecognition]);
+
+  const requestMediaAccess = useCallback(async () => {
+    // Check browser support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Camera and microphone access are not supported by this browser.");
+      setCameraStatus("denied");
+      setMicPermissionStatus("denied");
+      return;
+    }
+
+    console.log("Requesting camera and microphone access...");
+
+    // Enumerate devices to check if cameras are available
+    let videoDevices: MediaDeviceInfo[] = [];
+    let audioDevices: MediaDeviceInfo[] = [];
+    
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      videoDevices = devices.filter(device => device.kind === 'videoinput');
+      audioDevices = devices.filter(device => device.kind === 'audioinput');
+      
+      console.log("Available video devices:", videoDevices.length, videoDevices.map(d => d.label));
+      console.log("Available audio devices:", audioDevices.length, audioDevices.map(d => d.label));
+
+      if (videoDevices.length === 0) {
+        setError("No camera was found on this device. Please connect a camera and try again.");
+        setCameraStatus("denied");
+        setMicPermissionStatus("denied");
+        return;
+      }
+
+      if (audioDevices.length === 0) {
+        setError("No microphone was found on this device. Please connect a microphone and try again.");
+        setCameraStatus("denied");
+        setMicPermissionStatus("denied");
+        return;
+      }
+    } catch (enumerateErr: any) {
+      console.error("Error enumerating devices:", enumerateErr);
+      // Continue anyway - enumeration might fail if permissions not granted yet
+    }
+
+    // Request camera first - try each available camera device
+    let videoStream: MediaStream | null = null;
+    let cameraError: any = null;
+    
+    for (let i = 0; i < videoDevices.length; i++) {
+      const device = videoDevices[i];
+      try {
+        console.log(`Trying camera ${i + 1}/${videoDevices.length}:`, device.deviceId, device.label || "Unnamed camera");
+        
+        // Try with deviceId constraint
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { deviceId: { exact: device.deviceId } } 
+        });
+        
+        console.log("Camera access granted with device:", device.label || device.deviceId);
+        setCameraStatus("granted");
+        setError(null);
+        cameraError = null;
+        break; // Success - exit loop
+      } catch (err: any) {
+        console.error(`Camera ${i + 1} failed:`, err.name || err, err.message || err);
+        cameraError = err;
+        
+        // Stop any partial stream
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+          videoStream = null;
+        }
+      }
+    }
+
+    // If all cameras failed, try without deviceId constraint as fallback
+    if (!videoStream) {
+      try {
+        console.log("Trying camera without deviceId constraint...");
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log("Camera access granted (fallback)");
+        setCameraStatus("granted");
+        setError(null);
+        cameraError = null;
+      } catch (fallbackErr: any) {
+        console.error("Camera fallback failed:", fallbackErr.name, fallbackErr.message);
+        cameraError = fallbackErr;
+      }
+    }
+
+    // If still no camera, show error but allow proceeding with warning
+    if (!videoStream) {
+      console.error("All camera attempts failed");
+      setCameraStatus("denied");
+      
+      if (cameraError.name === "NotAllowedError" || cameraError.name === "PermissionDeniedError") {
+        setError("Camera permission was denied. Please allow camera access in your browser. Click Retry to try again, or Skip to proceed without camera.");
+      } else if (cameraError.name === "NotFoundError") {
+        setError("No camera was found on this device. Click Retry to try again, or Skip to proceed without camera.");
+      } else if (cameraError.name === "NotReadableError") {
+        setError("The camera is currently being used by another application. Please close other applications using the camera and try again, or Skip to proceed without camera.");
+      } else if (cameraError.name === "AbortError") {
+        setError("Camera could not be started (timeout). This may be a hardware/driver issue. Click Retry to try again, or Skip to proceed without camera.");
+      } else {
+        setError(cameraError.message || "Failed to access camera. Click Retry to try again, or Skip to proceed without camera.");
+      }
+      return;
+    }
+
+    // Only request microphone after camera succeeds
+    let audioStream: MediaStream | null = null;
+    try {
+      console.log("Requesting microphone access...");
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("Microphone access granted");
+      setMicPermissionStatus("granted");
+    } catch (audioErr: any) {
+      console.error("Microphone access error - Name:", audioErr.name, "Message:", audioErr.message);
+      setMicPermissionStatus("denied");
+      // Stop video stream if audio fails
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      
+      if (audioErr.name === "NotAllowedError" || audioErr.name === "PermissionDeniedError") {
+        setError("Microphone permission was denied. Please allow microphone access in your browser.");
+      } else if (audioErr.name === "NotFoundError") {
+        setError("No microphone was found on this device.");
+      } else if (audioErr.name === "NotReadableError") {
+        setError("The microphone is currently being used by another application.");
+      } else if (audioErr.name === "AbortError") {
+        setError("Microphone could not be started. Please check that your microphone is available and not being used by another application.");
+      } else {
+        setError(audioErr.message || "Failed to access microphone. Please try again.");
+      }
+      return;
+    }
+
+    // Combine streams
+    const combinedStream = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...audioStream.getAudioTracks()
+    ]);
+
+    console.log("Combined stream created");
+    setMediaStream(combinedStream);
+
+    // Set video preview after a small delay to ensure video element is rendered
+    setTimeout(() => {
+      if (videoRef.current) {
+        console.log("Setting video preview (delayed)");
+        console.log("Video stream tracks:", combinedStream.getTracks());
+        console.log("Video stream video tracks:", combinedStream.getVideoTracks());
+        
+        videoRef.current.srcObject = combinedStream;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.autoplay = true;
+        
+        videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded, playing...");
+          console.log("Video readyState:", videoRef.current?.readyState);
+          console.log("Video videoWidth:", videoRef.current?.videoWidth);
+          console.log("Video videoHeight:", videoRef.current?.videoHeight);
+          videoRef.current?.play()
+            .then(() => console.log("Video playing successfully"))
+            .catch(e => console.error("Video play error:", e));
+        };
+
+        videoRef.current.play()
+          .then(() => console.log("Video playing immediately"))
+          .catch(e => console.log("Video not playing yet, waiting for metadata:", e));
+      } else {
+        console.error("videoRef.current is still null after delay!");
+      }
+    }, 100);
+  }, []);
+
+  const startSystemCheck = useCallback(async () => {
+    setShowSystemCheck(true);
+    setCameraStatus("checking");
+    setMicPermissionStatus("checking");
+    setMicVerificationStatus("idle");
+    setError(null);
+
+    await requestMediaAccess();
+  }, [requestMediaAccess]);
+
+  const handleRetry = useCallback(async () => {
+    stopMediaStream();
+    setCameraStatus("checking");
+    setMicPermissionStatus("checking");
+    setMicVerificationStatus("idle");
+    setError(null);
+    setRecognizedText("");
+    setSpeechError(null);
+
+    await requestMediaAccess();
+  }, [stopMediaStream, requestMediaAccess]);
+
+  // Speech recognition functions
+  const normalizeString = (str: string): string => {
+    return str
+      .toLowerCase()
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const calculateSimilarity = (str1: string, str2: string): number => {
+    const s1 = normalizeString(str1);
+    const s2 = normalizeString(str2);
+
+    console.log("Similarity calculation - Input 1:", str1, "-> Normalized:", s1);
+    console.log("Similarity calculation - Input 2:", str2, "-> Normalized:", s2);
+
+    if (s1 === s2) return 100;
+
+    // Calculate Levenshtein distance
+    const len1 = s1.length;
+    const len2 = s2.length;
+    const matrix = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+
+    for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+    for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= len1; i++) {
+      for (let j = 1; j <= len2; j++) {
+        const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    const distance = matrix[len1][len2];
+    const maxLen = Math.max(len1, len2);
+    const similarity = maxLen === 0 ? 100 : ((maxLen - distance) / maxLen) * 100;
+    
+    console.log("Levenshtein distance:", distance, "Max length:", maxLen, "Similarity:", similarity);
+
+    return similarity;
+  };
+
+  const startSpeechRecognition = useCallback(() => {
+    // Check browser support
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSpeechError("Speech verification is not supported by this browser. Please use a supported browser such as Chrome or Edge.");
+      return;
+    }
+
+    console.log("Starting speech recognition...");
+
+    // Stop any existing recognition
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    // Store final transcript locally to avoid stale state
+    let finalTranscript = "";
+
+    recognition.onstart = () => {
+      console.log("Speech recognition started");
+      setMicVerificationStatus("listening");
+      setRecognizedText("");
+      setSpeechError(null);
+      finalTranscript = "";
+    };
+
+    recognition.onresult = (event: any) => {
+      const interim = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join("");
+      console.log("Speech recognition result:", interim);
+      setRecognizedText(interim);
+      finalTranscript = interim;
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        setSpeechError("Microphone permission was denied. Please allow microphone access and try again.");
+      } else if (event.error === "no-speech") {
+        setSpeechError("No speech was detected. Please try again.");
+      } else {
+        setSpeechError("Speech recognition failed. Please try again.");
+      }
+      setMicVerificationStatus("failed");
+    };
+
+    recognition.onend = () => {
+      console.log("Speech recognition ended");
+      console.log("Final transcript:", finalTranscript);
+      const expectedSentence = "I am ready to begin my assessment";
+      const similarity = calculateSimilarity(finalTranscript, expectedSentence);
+      console.log("Similarity:", similarity);
+
+      if (similarity >= 75) {
+        setMicVerificationStatus("verified");
+        setSpeechError(null);
+      } else {
+        setMicVerificationStatus("failed");
+        setSpeechError("Your speech could not be verified. Please try again.");
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, []);
+
+  const handleCloseSystemCheck = useCallback(() => {
+    stopMediaStream();
+    setShowSystemCheck(false);
+    setCameraStatus("checking");
+    setMicPermissionStatus("checking");
+    setMicVerificationStatus("idle");
+    setError(null);
+    setRecognizedText("");
+    setSpeechError(null);
+  }, [stopMediaStream]);
+
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      handleCloseSystemCheck();
+    }
+  }, [handleCloseSystemCheck]);
+
+  const handleContinueToTest = useCallback(() => {
+    stopMediaStream();
+    setShowSystemCheck(false);
+    router.push("/dashboard/assessment-center/tcs-nqt-2020-numerical");
+  }, [stopMediaStream, router]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopMediaStream();
+    };
+  }, [stopMediaStream]);
 
   return (
     <div className="space-y-6">
@@ -275,12 +711,10 @@ export default function AssessmentCenterPage() {
 
                     <div className="flex items-center justify-between">
                       <div></div>
-                      <Link href="/dashboard/assessment-center/tcs-nqt-2020-numerical">
-                        <Button className="bg-primary hover:bg-primary/90">
-                          <Play className="h-4 w-4 mr-2" />
-                          Start Questions
-                        </Button>
-                      </Link>
+                      <Button onClick={startSystemCheck} className="bg-primary hover:bg-primary/90">
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Questions
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -821,8 +1255,8 @@ export default function AssessmentCenterPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200">
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   onClick={() => setShowGuidelinesModal(false)}
                 >
                   I Understand
@@ -832,6 +1266,199 @@ export default function AssessmentCenterPage() {
           </Card>
         </div>
       )}
+
+      {/* System Check Dialog */}
+      <Dialog open={showSystemCheck} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>System Check</DialogTitle>
+            <DialogDescription>
+              Please check your camera and microphone before starting the assessment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Camera Status */}
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-200">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+                <Camera className="h-5 w-5 text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">Camera</p>
+                <p className="text-xs text-slate-500">
+                  {cameraStatus === "checking" && "Checking..."}
+                  {cameraStatus === "granted" && (
+                    <span className="text-green-600 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" /> Camera access granted
+                    </span>
+                  )}
+                  {cameraStatus === "denied" && (
+                    <span className="text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Camera access required
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Microphone Status */}
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-200">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+                <Mic className="h-5 w-5 text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">Microphone</p>
+                <p className="text-xs text-slate-500">
+                  {micPermissionStatus === "checking" && "Checking..."}
+                  {micPermissionStatus === "granted" && (
+                    <span className="text-green-600 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" /> Microphone access granted
+                    </span>
+                  )}
+                  {micPermissionStatus === "denied" && (
+                    <span className="text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Microphone access required
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                <p className="text-sm text-red-700 mb-3">{error}</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleRetry}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      stopMediaStream();
+                      setCameraStatus("granted");
+                      setMicPermissionStatus("granted");
+                      setError(null);
+                      router.push("/dashboard/assessment-center/tcs-nqt-2020-numerical");
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Skip
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Camera Preview */}
+            {cameraStatus === "granted" && (
+              <div className="flex justify-center">
+                <div className="relative w-full max-w-sm aspect-video bg-slate-900 rounded-lg overflow-hidden">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                    onCanPlay={() => {
+                      console.log("Video can play, forcing playback");
+                      videoRef.current?.play().catch(e => console.error("Video play error in onCanPlay:", e));
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Microphone Speech Verification */}
+            {cameraStatus === "granted" && micPermissionStatus === "granted" && (
+              <div className="border-t border-slate-200 pt-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">Microphone Test</h3>
+                <p className="text-xs text-slate-500 mb-3">Please say the following sentence clearly:</p>
+                <div className="p-3 bg-slate-50 rounded-lg mb-3">
+                  <p className="text-sm font-medium text-slate-900">"I am ready to begin my assessment."</p>
+                </div>
+
+                {micVerificationStatus === "idle" && (
+                  <Button onClick={startSpeechRecognition} className="w-full">
+                    <Mic className="h-4 w-4 mr-2" />
+                    Start Microphone Test
+                  </Button>
+                )}
+
+                {micVerificationStatus === "listening" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <div className="h-3 w-3 rounded-full bg-red-600 animate-pulse" />
+                      <span className="text-sm font-medium">Listening...</span>
+                    </div>
+                    {recognizedText && (
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">You said:</p>
+                        <p className="text-sm text-slate-900">{recognizedText}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {micVerificationStatus === "verified" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Microphone verified</span>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <p className="text-xs text-slate-500 mb-1">You said:</p>
+                      <p className="text-sm text-slate-900">{recognizedText}</p>
+                    </div>
+                  </div>
+                )}
+
+                {micVerificationStatus === "failed" && (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-red-50 rounded-lg">
+                      <p className="text-sm text-red-700">{speechError || "Your speech could not be verified. Please try again."}</p>
+                    </div>
+                    {recognizedText && (
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">You said:</p>
+                        <p className="text-sm text-slate-900">{recognizedText}</p>
+                      </div>
+                    )}
+                    <Button onClick={startSpeechRecognition} variant="outline" className="w-full">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Try Again
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseSystemCheck}>
+              Cancel
+            </Button>
+            {error && (
+              <Button variant="outline" onClick={handleRetry}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            )}
+            <Button
+              onClick={handleContinueToTest}
+              disabled={cameraStatus !== "granted" || micPermissionStatus !== "granted" || micVerificationStatus !== "verified"}
+            >
+              Continue to Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

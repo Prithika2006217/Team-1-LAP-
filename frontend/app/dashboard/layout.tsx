@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-background">
       <Sidebar />
       {/* Offset content by the fixed sidebar width on large screens. */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 transition-all duration-200" id="dashboard-content">
         <Header />
             <Suspense fallback={<main className="p-6" />}>
               <main className="p-6">{children}</main>

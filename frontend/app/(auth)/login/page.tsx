@@ -130,7 +130,7 @@ function LoginForm({ role, onSignup }: { role: string; onSignup: () => void }) {
             placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="pr-10"
+            className="pr-10 h-11"
           />
           <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:text-slate-900" aria-label={showPassword ? "Hide password" : "Show password"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -238,13 +238,13 @@ function SignupForm({ role, onBack }: { role: string; onBack: () => void }) {
       <div className="space-y-2">
         <Label htmlFor="signup-password" className="text-sm font-medium text-slate-700">Password</Label>
         <div className="relative">
-          <Input 
-          id="signup-password" 
-          type={showPassword ? "text" : "password"} 
-          placeholder="Enter password" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} className="pr-10" 
-          className="h-11"
+          <Input
+          id="signup-password"
+          type={showPassword ? "text" : "password"}
+          placeholder="Enter password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="pr-10 h-11"
         />
           <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:text-slate-900" aria-label={showPassword ? "Hide password" : "Show password"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

@@ -6,7 +6,7 @@ import { SidebarNav } from "./sidebar-nav";
 
 export function Sidebar() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-100 bg-white lg:flex">
+    <aside id="dashboard-sidebar" className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-100 bg-white lg:flex">
       {/* Brand */}
       <div className="flex h-16 items-center gap-2 px-6">
         <Link href="/" className="flex items-center gap-2">

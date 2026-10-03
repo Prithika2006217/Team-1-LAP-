@@ -53,3 +53,26 @@
     scrollbar-width: none;
   }
 }
+
+/* Hide sidebar and header in fullscreen mode */
+body.fullscreen-mode #dashboard-sidebar {
+  display: none !important;
+}
+
+body.fullscreen-mode #dashboard-content {
+  padding-left: 0 !important;
+}
+
+body.fullscreen-mode #dashboard-header {
+  display: none !important;
+}
+
+body.fullscreen-mode #dashboard-content > main {
+  padding: 0 !important;
+}
+
+/* Make test content full width in fullscreen mode */
+body.fullscreen-mode .fullscreen-test-content #test-container {
+  max-width: 100% !important;
+  padding: 1rem !important;
+}

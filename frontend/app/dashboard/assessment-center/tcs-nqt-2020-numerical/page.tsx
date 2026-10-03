@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Flag, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Flag, ArrowLeft, CheckCircle2, AlertTriangle, Video, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,6 +45,22 @@ export default function TCSNQT2020NumericalPage() {
     totalQuestions: number;
   } | null>(null);
 
+  // Proctoring state
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [audioAnalyser, setAudioAnalyser] = useState<AnalyserNode | null>(null);
+  const [isAudioAboveThreshold, setIsAudioAboveThreshold] = useState(false);
+  const [faceVisible, setFaceVisible] = useState(true);
+  const [warningCount, setWarningCount] = useState(0);
+  const [currentWarning, setCurrentWarning] = useState<string | null>(null);
+  const [isAutoSubmitted, setIsAutoSubmitted] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasAutoSubmittedRef = useRef(false);
+
   // Initialise current question + timer once the blueprint arrives.
   useEffect(() => {
     if (test) {
@@ -52,20 +68,6 @@ export default function TCSNQT2020NumericalPage() {
       setCurrentId((prev) => prev ?? test.sections[0]?.questions[0]?.id ?? null);
     }
   }, [test]);
-
-  const current: Question | undefined = flat.find((q) => q.id === currentId);
-
-  function setAnswer(questionId: string, value: string) {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  }
-
-  function toggleMark(questionId: string) {
-    setMarked((prev) => {
-      const next = new Set(prev);
-      next.has(questionId) ? next.delete(questionId) : next.add(questionId);
-      return next;
-    });
-  }
 
   // --- Submit ---------------------------------------------------------------
   const handleSubmit = useCallback(async () => {
@@ -97,6 +99,333 @@ export default function TCSNQT2020NumericalPage() {
       setSubmitting(false);
     }
   }, [submitting, userId, answers]);
+
+  // --- Proctoring Functions -------------------------------------------------
+  const enterFullScreen = useCallback(async () => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      } else if ((document.documentElement as any).webkitRequestFullscreen) {
+        await (document.documentElement as any).webkitRequestFullscreen();
+      }
+      setIsFullScreen(true);
+      // Add class to body to hide sidebar/header
+      document.body.classList.add('fullscreen-mode');
+    } catch (err: any) {
+      console.error("Fullscreen failed:", err);
+      // Continue even if fullscreen fails - user might have denied permission
+      setIsFullScreen(true);
+      document.body.classList.add('fullscreen-mode');
+    }
+  }, []);
+
+  const exitFullScreen = useCallback(async () => {
+    try {
+      // Check if currently in fullscreen before trying to exit
+      const isCurrentlyFullScreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+      
+      if (isCurrentlyFullScreen) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      }
+      
+      setIsFullScreen(false);
+      // Remove class to show sidebar/header
+      document.body.classList.remove('fullscreen-mode');
+    } catch (err) {
+      console.error("Exit fullscreen failed:", err);
+      // Continue anyway - document might already be out of fullscreen
+      setIsFullScreen(false);
+      document.body.classList.remove('fullscreen-mode');
+    }
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      console.log("Starting camera in test...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      console.log("Camera stream obtained:", stream);
+      setCameraStream(stream);
+      
+      // Set video preview with delay to ensure element is rendered
+      setTimeout(() => {
+        if (videoRef.current) {
+          console.log("Setting camera preview in test");
+          console.log("Video element exists:", !!videoRef.current);
+          videoRef.current.srcObject = stream;
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
+          videoRef.current.autoplay = true;
+          
+          videoRef.current.onloadedmetadata = () => {
+            console.log("Camera video metadata loaded, playing...");
+            console.log("Video dimensions:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
+            videoRef.current?.play()
+              .then(() => console.log("Camera video playing successfully"))
+              .catch(e => console.error("Camera video play error:", e));
+          };
+
+          videoRef.current.play()
+            .then(() => console.log("Camera video playing immediately"))
+            .catch(e => console.log("Camera video not playing yet, waiting for metadata:", e));
+        } else {
+          console.error("Camera videoRef.current is null after delay!");
+        }
+      }, 200);
+    } catch (err) {
+      console.error("Camera access failed:", err);
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  }, [cameraStream]);
+
+  const startAudioDetection = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      
+      setAudioContext(audioCtx);
+      setAudioAnalyser(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let sustainedNoiseCount = 0;
+      const sustainedNoiseThreshold = 10; // consecutive detections
+      const audioThreshold = 30; // volume threshold
+
+      const checkAudio = () => {
+        if (!audioAnalyser) return;
+        
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        
+        if (average > audioThreshold) {
+          sustainedNoiseCount++;
+          if (sustainedNoiseCount >= sustainedNoiseThreshold) {
+            setIsAudioAboveThreshold(true);
+            sustainedNoiseCount = 0;
+          }
+        } else {
+          sustainedNoiseCount = 0;
+          setIsAudioAboveThreshold(false);
+        }
+        
+        requestAnimationFrame(checkAudio);
+      };
+
+      checkAudio();
+    } catch (err) {
+      console.error("Audio detection failed:", err);
+    }
+  }, [audioAnalyser]);
+
+  const stopAudioDetection = useCallback(() => {
+    if (audioContext) {
+      audioContext.close();
+      setAudioContext(null);
+      setAudioAnalyser(null);
+    }
+  }, [audioContext]);
+
+  const triggerWarning = useCallback((message: string) => {
+    setWarningCount(prev => {
+      const newCount = prev + 1;
+      
+      // Auto-submit after 2 warnings
+      if (newCount >= 2) {
+        setIsAutoSubmitted(true);
+        setCurrentWarning("Multiple violations detected. Test auto-submitted.");
+      }
+      
+      return newCount;
+    });
+    
+    setCurrentWarning(message);
+    
+    // Clear previous timeout
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+    }
+    
+    // Auto-hide warning after 5 seconds
+    warningTimeoutRef.current = setTimeout(() => {
+      setCurrentWarning(null);
+    }, 5000);
+  }, []);
+
+  // Ensure video plays when camera stream is set
+  useEffect(() => {
+    if (cameraStream && videoRef.current && videoRef.current.srcObject) {
+      console.log("Camera stream set, ensuring video plays");
+      videoRef.current.play()
+        .then(() => console.log("Camera video playing after stream set"))
+        .catch(e => console.error("Camera video play error after stream set:", e));
+    }
+  }, [cameraStream]);
+
+  // Ensure video plays when test loads
+  useEffect(() => {
+    if (cameraStream && videoRef.current) {
+      console.log("Test loaded, ensuring camera video plays");
+      videoRef.current.play()
+        .then(() => console.log("Camera video playing after test load"))
+        .catch(e => console.error("Camera video play error after test load:", e));
+    }
+  }, [cameraStream]);
+
+  // Simple face detection - check if video has motion (simplified version)
+  useEffect(() => {
+    if (!cameraStream || !videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let previousFrame: ImageData | null = null;
+    let noFaceCount = 0;
+    const noFaceThreshold = 30; // consecutive frames without face
+
+    const checkFace = () => {
+      if (!videoRef.current || !canvasRef.current) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = ctx;
+
+      canvas.width = video.videoWidth / 4;
+      canvas.height = video.videoHeight / 4;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+      
+      if (previousFrame) {
+        // Simple motion detection - compare frames
+        let motionPixels = 0;
+        for (let i = 0; i < currentFrame.data.length; i += 4) {
+          const diff = Math.abs(currentFrame.data[i] - previousFrame.data[i]) +
+                       Math.abs(currentFrame.data[i + 1] - previousFrame.data[i + 1]) +
+                       Math.abs(currentFrame.data[i + 2] - previousFrame.data[i + 2]);
+          if (diff > 30) motionPixels++;
+        }
+
+        const motionRatio = motionPixels / (currentFrame.data.length / 4);
+        
+        // If no motion for extended period, face might not be visible
+        if (motionRatio < 0.01) {
+          noFaceCount++;
+          if (noFaceCount >= noFaceThreshold) {
+            setFaceVisible(false);
+            triggerWarning("Face not detected. Please ensure your face is visible in the camera.");
+            noFaceCount = 0;
+          }
+        } else {
+          noFaceCount = 0;
+          setFaceVisible(true);
+        }
+      }
+
+      previousFrame = currentFrame;
+      requestAnimationFrame(checkFace);
+    };
+
+    checkFace();
+
+    return () => {
+      previousFrame = null;
+    };
+  }, [cameraStream, triggerWarning]);
+
+  // Monitor audio threshold changes
+  useEffect(() => {
+    if (isAudioAboveThreshold) {
+      triggerWarning("Audio detected. Please maintain silence during the test.");
+    }
+  }, [isAudioAboveThreshold, triggerWarning]);
+
+  // Monitor fullscreen exit
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullScreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+      
+      if (!isCurrentlyFullScreen && isFullScreen && !isAutoSubmitted) {
+        triggerWarning("Fullscreen mode exited. Please return to fullscreen. (Warning " + (warningCount + 1) + "/2)");
+        // Don't force re-enter fullscreen - just show warning
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullScreen, isAutoSubmitted, triggerWarning, warningCount]);
+
+  // Start proctoring when test loads
+  useEffect(() => {
+    if (test && !result) {
+      enterFullScreen();
+      startCamera();
+      startAudioDetection();
+    }
+
+    return () => {
+      stopCamera();
+      stopAudioDetection();
+      exitFullScreen();
+      // Ensure fullscreen class is removed on cleanup
+      document.body.classList.remove('fullscreen-mode');
+    };
+  }, [test, result, enterFullScreen, startCamera, stopCamera, startAudioDetection, stopAudioDetection, exitFullScreen]);
+
+  // Remove fullscreen class when showing result
+  useEffect(() => {
+    if (result) {
+      document.body.classList.remove('fullscreen-mode');
+    }
+  }, [result]);
+
+  // Auto-submit when triggered
+  useEffect(() => {
+    if (isAutoSubmitted && !result && !hasAutoSubmittedRef.current) {
+      hasAutoSubmittedRef.current = true;
+      setTimeout(() => {
+        handleSubmit();
+      }, 2000);
+    }
+  }, [isAutoSubmitted, result, handleSubmit]);
+
+  const current: Question | undefined = flat.find((q) => q.id === currentId);
+
+  function setAnswer(questionId: string, value: string) {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  }
+
+  function toggleMark(questionId: string) {
+    setMarked((prev) => {
+      const next = new Set(prev);
+      next.has(questionId) ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+  }
 
   // --- Countdown ------------------------------------------------------------
   useEffect(() => {
@@ -181,8 +510,8 @@ export default function TCSNQT2020NumericalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+    <div className="min-h-screen bg-slate-50 fullscreen-test-content">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4" id="test-container">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
@@ -217,6 +546,75 @@ export default function TCSNQT2020NumericalPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Proctoring Warning Banner */}
+      {currentWarning && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-900">Proctoring Warning ({warningCount}/2)</p>
+                <p className="text-sm text-amber-700">{currentWarning}</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentWarning(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Proctoring Camera Preview */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <Card className="shadow-lg">
+          <CardContent className="p-2">
+            <div className="relative w-48 h-36 bg-slate-900 rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+                onCanPlay={() => {
+                  console.log("Camera video can play in test, forcing playback");
+                  videoRef.current?.play().catch(e => console.error("Camera video play error in onCanPlay:", e));
+                }}
+              />
+              <canvas ref={canvasRef} className="hidden" />
+              
+              {/* Status indicators */}
+              <div className="absolute top-2 left-2 flex gap-2">
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  faceVisible ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                }`}>
+                  <Video className="h-3 w-3" />
+                  {faceVisible ? 'Face OK' : 'No Face'}
+                </div>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  warningCount < 2 ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+                }`}>
+                  <AlertTriangle className="h-3 w-3" />
+                  {warningCount}/2
+                </div>
+              </div>
+              
+              <div className="absolute top-2 right-2">
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  isAudioAboveThreshold ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                }`}>
+                  <Volume2 className="h-3 w-3" />
+                  {isAudioAboveThreshold ? 'Audio' : 'Silent'}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_18rem]">
         {/* Question viewer */}
